@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-#from sheet import *
 from cell import * 
 from cell_graph import *
+from cell_error import *
 import decimal
 import lark
+import logging
 
 class Workbook():
     def __init__(self):
@@ -11,6 +12,7 @@ class Workbook():
         self.sheets = {}
         self.extents = {}
         self.graph = CellGraph()
+        self.display_sheets = {}
 
     def num_sheets(self) -> int:
         return len(self.sheets)
@@ -18,63 +20,80 @@ class Workbook():
     def list_sheets(self) -> list[str]:
         return self.sheets.keys()
     
-    def list_cells(self, sheet_name) -> list[str]:
+    def __list_cells(self, sheet_name) -> list[str]:
         return self.sheets[sheet_name].keys()
+    
+    def sheet_name_exists(self, sheet_name: str) -> bool:
+        return sheet_name.upper() in (s.upper() for s in self.sheets.keys())
+    
+    def location_exists(self, sheet_name:str, location: str) -> bool:
+        return location.upper() in (l.upper() for l in self.sheets[sheet_name.upper()].keys())
     
     # returns false if given sheet name has leading or trailing whitespace, already exists in the workbook, 
     # or contains an illegal character 
     # true otherwise
-    def is_valid_sheet(self, sheet_name: str) -> bool:
-        if (sheet_name.strip() != sheet_name) or (sheet_name in self.sheets):
+    def is_valid_sheet(self, sheet_name) -> bool:
+        if type(sheet_name) != 'str':
+            return False
+        if self.sheet_name_exists(sheet_name):
+            logging.info("Workbook: is_valid_sheet: sheet name already exists")
+            return False
+        if (sheet_name.strip() != sheet_name):
+            logging.info("Workbook: is_valid_sheet: leading or trailing whitespace")
             return False
         if ('/' in sheet_name) or ('<' in sheet_name) or ('=' in sheet_name) or ('>' in sheet_name) or ('[' in sheet_name) or (']' in sheet_name) or ('+' in sheet_name):
+            logging.info("Workbook: is_valid_sheet: illegal charcter in sheet name")
             return False
         return True
     
     # returns whether the given string represents a valid location in the sheet
     def is_valid_location(self, location: str) -> bool:
         if len(location) > 8 or len(location) < 2:
+            logging.info("Workbook: is_valid_location: invalid cell location, too long or too short")
             return False
         parser = lark.Lark.open('formulas.lark', start='expression')
         try:
             tree = parser.parse(location)
             return True
         except:
+            print("Workbook: is_valid_location: could not recognize cell reference")
             return False 
     
     # creates new empty spreadsheet if the given sheet_name is valid 
     # returns a the index and name of the new spreadsheet
     def new_sheet(self, sheet_name:str = None) -> tuple[int, str]:
         if self.is_valid_sheet(sheet_name):
-            self.sheets[sheet_name] = {}
+            self.sheets[sheet_name.upper()] = {}
             return (self.num_sheets(), sheet_name)
         else:
             n = 1
             while(True):
-                if "SHEET" + str(n) not in self.sheets and n <= self.num_sheets():
+                if "SHEET" + str(n) not in self.sheets and n <= self.num_sheets() + 1:
                     self.sheets["SHEET" + str(n)] = {}
-                    return (n, "SHEET" + str(n))
+                    self.display_sheets["SHEET" + str(n)] = "Sheet" + str(n)
+                    return (n, "Sheet" + str(n))
                 n += 1
 
     # delete the given spreadsheet            
     def del_sheet(self, sheet_name: str) -> None:
-        if sheet_name in self.sheets:
-            self.sheets.pop(sheet_name)
+        if self.sheet_name_exists(sheet_name):
+            self.sheets.pop(sheet_name.upper())
 
     # return number of rows and columns in the given spreadsheet
     def get_sheet_extent(self, sheet_name: str) -> tuple[int, int]:
-        if sheet_name in self.extents:
-            return self.extents[sheet_name]
+        if self.sheet_name_exists(sheet_name):
+            return self.extents[sheet_name.upper()]
+        logging.info("Workbook: get_sheet_extent: sheet name not in extents")
         return None
     
     # when a spreadsheet is added or deleted, update the extent of that sheet 
-    def update_sheet_extent(self, sheet_name: str) -> None:
-        if sheet_name in self.sheets:
+    def __update_sheet_extent(self, sheet_name: str) -> None:
+        if self.sheet_name_exists(sheet_name):
             a = 0
             b = 0
             new_extent = (0,0)
             n = 0
-            for i in self.sheets[sheet_name].keys():
+            for i in self.sheets[sheet_name.upper()].keys():
                 for j in range(len(i)):
                     if i[j].upper().isalpha():
                         a += ord(i[j].upper()) - 64 + (26 * n)
@@ -83,45 +102,58 @@ class Workbook():
                         break
                 if (a,b) > new_extent:
                     new_extent = (a,b)
-            self.extents[sheet_name] = new_extent
+            self.extents[sheet_name.upper()] = new_extent
     
     # set the cell of the given location to the given contents
     # return true if successful, false otherwise
     def set_cell_contents(self, sheet_name: str, location: str, contents:str) -> bool:
-        if sheet_name not in self.sheets:
+        if not self.sheet_name_exists(sheet_name):
             return False
         if not self.is_valid_location(location):
             return False
         # check if the sheet already has a cell, if not create one
-        if location not in self.sheets[sheet_name]:
-            self.sheets[sheet_name][location] = Cell(self.workbook, sheet_name, location, self.graph)
+        if not self.location_exists(sheet_name, location):
+            self.sheets[sheet_name.upper()][location.upper()] = Cell(self.workbook, sheet_name, location, self.graph)
         # update the cell contents
-        self.sheets[sheet_name][location].set_contents(contents)
-        self.update_sheet_extent(sheet_name)
+        self.sheets[sheet_name.upper()][location.upper()].set_contents(contents)
+        self.__update_sheet_extent(sheet_name.upper())
         return True
 
     # return the cell object at a particular location
-    def get_cell(self, sheet_name: str, location: str) -> Cell:
-        if sheet_name not in self.sheets:
-            return False
-        if not self.is_valid_location(location):
-            return False
+    def add_dependency(self, src_cell: Cell, location: str, sheet_name: str) -> Cell:
+        assert self.sheet_name_exists(sheet_name)
+        assert self.is_valid_location(location.upper())
         # check if the sheet already has a cell, if not create one
-        if location not in self.sheets[sheet_name]:
+        if not self.location_exists(sheet_name, location):
             self.sheets[sheet_name][location] = Cell(self.workbook, sheet_name, location, self.graph)
-        return self.sheets[sheet_name][location]
+        dest_cell = self.sheets[sheet_name.upper()][location.upper()]
+        self.graph.add_edge(src_cell, dest_cell)
+        return dest_cell
     
     # return the contents of the cell at the given location
     def get_cell_contents(self, sheet_name: str, location: str):
-        if sheet_name in self.sheets.keys():
-            if location.upper() in self.sheets[sheet_name].keys():
-                return self.sheets[sheet_name][location].get_contents()
+        if self.sheet_name_exists(sheet_name) and self.location_exists(sheet_name, location):
+            return self.sheets[sheet_name.upper()][location.upper()].get_contents()
         return None
 
     # return the value of the cell at the given location    
     def get_cell_value(self, sheet_name: str, location: str):
-        if location.upper() in self.sheets[sheet_name].keys():
-            return self.sheets[sheet_name][location].get_value()
-        return None
-
+        # parameter validation
+        if not self.sheet_name_exists(sheet_name):
+            logging.info("Workbook: get_cell_value: sheet_name does not exist")
+            return None
+        if not self.location_exists(sheet_name, location):
+            logging.info("Workbook: get_cell_value: location does not exist")
+            return None
+        # get strongly connected component set
+        self.graph.SCC()
+        # get values in order of the strongly connected set
+        for set in self.graph.setList:
+            if len(set) > 1:
+                return CellError("#CIRCREF!", "Circular reference detected")
+            for j in set:
+                self.sheets[j.sheet_name.upper()][j.location.upper()].get_value()
+        return self.sheets[sheet_name.upper()][location.upper()].get_value()
     
+    def get_dependent_cell_value(self, sheet_name:str, location:str):
+        return self.sheets[sheet_name.upper()][location.upper()].value
