@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from collections import defaultdict
+import logging
+import cell
+
+class Node:
+    def __init__(self, n):
+        #self.id = uuid.uuid4().hex[:6].lower()
+        self.id = n
+    def getId(self):
+        return self.id
+    def __str__(self):
+        return str(self.id)
+    def __repr__(self):
+        return self.id
+
+class CellGraph():
+    def __init__(self):
+        # stores dictionary of sets to store edges
+        self.graph = defaultdict(set)
+        # stores the nodes of the graph
+        self.nodes = set()
+        # disc is used to store discovery times of visited vertices
+        self.disc = {}
+        # low is used to store earliest visited node for each node
+        # earliest visited vertex is the vertex with minimum discovery
+        # time that can be reached from subtree rooted with current vertex
+        self.low = {}    
+        # time is used to keep track of discovery time
+        self.time = 0
+        # stackMemmer is an array for faster check whether a node is in stack
+        self.stackMember = {}
+        # currentSet is used to keep track of current strongly connected set    
+        self.currentSet = set()
+        # setList is used to keep track of the list of stongly connected sets
+        self.setList = []
+        # st is used to store all the connected ancestors (could be part of SCC)
+        self.st = []
+        
+    # add edge between node1 and node2 
+    def add_edge(self, node1, node2):
+        self.graph[node2].add(node1)
+        self.nodes.add(node1)
+        self.nodes.add(node2)
+    
+    # remove a given node from the graph
+    def remove_node(self, node):
+        for n in self.graph:
+            if node in self.graph[n]:
+                self.graph[n].remove(node)  
+                self.nodes.remove(node)
+            
+    # returns whether node1 connects to node2
+    def connected(self, node1, node2):
+        if node2 in self.graph[node1]:
+            return True
+        else:
+            return False
+    
+    def __str__(self):
+        str = ""
+        for e in self.graph:
+            str += e.__str__() + ":" 
+            for v in self.graph[e]:
+                str += " " + v.__str__()
+            str += "\n"
+            
+        return str
+
+    # function to print nodeSet
+    def print(self):
+        for u in self.nodes:
+            print('Node: ', u)
+            if (u not in self.graph):
+                print('     No edges')
+            else:
+                for v in self.graph[u]:
+                    print('     Edge: ', u, ' ===> ', v)
+        print()
+        print()
+ 
+    # function to print the set of sccs
+    def printSets(self):
+        for set in self.setList:
+            print('Printing new set')
+            print(set)
+            print()
+        print()
+        
+    # recursive function that find finds and prints strongly connected components using DFS traversal
+    # u --> The vertex to be visited next
+    # st --> To store all the connected ancestors (could be part of SCC)
+
+    def SCCUtil(self, u):
+ 
+        # Initialize discovery time and low value
+        self.disc[u] = self.time
+        self.low[u] = self.time
+        self.time += 1
+        self.stackMember[u] = True
+        self.st.append(u)
+ 
+        # Go through all vertices adjacent to this
+        for v in self.graph[u]:
+ 
+            # If v is not visited yet, then recur for it
+            if self.disc[v] == -1:
+ 
+                self.SCCUtil(v)
+ 
+                # Check if the subtree rooted with v has a connection to
+                # one of the ancestors of u
+                self.low[u] = min(self.low[u], self.low[v])
+ 
+            elif self.stackMember[v] == True:
+ 
+                '''Update low value of 'u' only if 'v' is still in stack
+                (i.e. it's a back edge, not cross edge).
+                Case 2 (per above discussion on Disc and Low value) '''
+                self.low[u] = min(self.low[u], self.disc[v])
+ 
+        # head node found, pop the stack and print an SCC
+        w = -1  # To store stack extracted vertices
+        if self.low[u] == self.disc[u]:
+            while w != u:
+                w = self.st.pop()
+                self.currentSet.add(w)
+                self.stackMember[w] = False
+ 
+            self.setList.append(self.currentSet.copy())
+            self.currentSet.clear()
+            #return scc
+ 
+    # The function to do DFS traversal.
+    # It uses recursive SCCUtil()
+    def SCC(self):
+ 
+        # Mark all the vertices as not visited
+        # and Initialize parent and visited,
+        # and ap(articulation point) arrays
+        
+        self.st.clear()
+        for n in self.nodes:
+            self.disc[n] = -1
+            self.low[n] = -1
+            self.stackMember[n] = False
+        
+        # Call the recursive helper function
+        # to find articulation points
+        # in DFS tree rooted with vertex 'i'
+        for n in self.nodes:
+            if self.disc[n] == -1:
+                self.SCCUtil(n)
+        self.setList.reverse()
+
+
+'''
+# Create a graph given in the above diagram
+g1 = CellGraph()
+
+n0 = Node(0)
+n1 = Node(1)
+n2 = Node(2)
+n3 = Node(3)
+n4 = Node(4)
+
+g1.add_edge(1, 0)
+g1.add_edge(0, 2)
+g1.add_edge(2, 1)
+g1.add_edge(0, 3)
+g1.add_edge(3, 4)
+
+
+print("SSC in first graph ")
+g1.SCC()
+g1.printSets()
+
+ 
+'''
