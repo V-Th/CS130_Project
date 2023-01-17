@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from cellerrortype import *
-from cellerror import *
+from .cellerrortype import *
+from .cellerror import *
 import decimal 
 import lark
 import logging
@@ -29,13 +29,14 @@ class Cell():
         if self.contents[0] == '=':
             try:
                 self.value_evaluator = CellValueFormula()
-                parser = lark.Lark.open('formulas.lark', start='formula')
+                parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
                 evaluator = DependencyFinder(self)
                 tree = parser.parse(self.contents)
                 evaluator.cell(tree)
             except AssertionError:
                 detail = f'Bad reference to non-existent sheet'
                 self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
+                return
         elif self.contents[0] == '\'':
             self.value_evaluator = CellValueString()
         else:
@@ -55,7 +56,7 @@ class Cell():
         return self.display_contents
 
     # inform workbook of dependency between this cell and another cell
-    def add_dependency(self, location: str, sheet_name: str = None):
+    def add_dependency(self, location: str, sheet_name: str = None):    
         if location == None:
             logging.info("Cell: add_dependency: could not add dependency - NoneType")
             return
@@ -67,7 +68,9 @@ class Cell():
     def get_value(self):
         if self.contents is None:
             return decimal.Decimal()
-        if self.value_evaluator is None:
+        elif isinstance(self.value, CellError):
+            return self.value
+        elif self.value_evaluator is None:
             return decimal.Decimal()
         self.value = self.value_evaluator.get_value(self)
         return self.value
@@ -85,13 +88,11 @@ class CellValueString():
 
 class CellValueNumber():
     def get_value(self, cell: Cell):
-        parser = lark.Lark.open('formulas.lark', start='base')
-        tree = parser.parse(cell.display_contents)
-        return decimal.Decimal(tree.children[0])
+        return decimal.Decimal(cell.contents)
 
 class CellValueFormula():
     def get_value(self, cell: Cell):
-        parser = lark.Lark.open('formulas.lark', start='formula')
+        parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
         evaluator = FormulaEvaluator(cell.workbook, cell.sheet_name)
         tree = parser.parse(cell.contents)
         value = evaluator.visit(tree)
@@ -200,13 +201,12 @@ class FormulaEvaluator(lark.visitors.Interpreter):
                 return other_cell 
 
 class DependencyFinder(lark.visitors.Interpreter):
-    def __init__(self, parent_cell):
+    def __init__(self, parent_cell: Cell):
         self.parent_cell = parent_cell
 
     def cell(self, tree):
         values = self.visit_children(tree)
-        if type(values) == None:
-            logging.info("DependencyFinder: cell: NoneType value detected")
-            return
-        if (values != None and tree.data == 'cell'):
+        if len(values) == 1 and tree.data == 'cell':
             self.parent_cell.add_dependency(values[0])
+        elif tree.data == 'cell':
+            self.parent_cell.add_dependency(values[1], values[0])

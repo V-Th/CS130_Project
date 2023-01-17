@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-from cell import *
-from cellerror import *
-from cellgraph import *
+from .cell import *
+from .cellerror import *
+from .cellgraph import *
 import lark
 import logging
 
@@ -50,7 +50,7 @@ class Workbook():
         if len(location) > 8 or len(location) < 2:
             logging.info("Workbook: is_valid_location: invalid cell location, too long or too short")
             return False
-        parser = lark.Lark.open('formulas.lark', start='expression')
+        parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='expression')
         try:
             tree = parser.parse(location)
             return True
@@ -123,7 +123,7 @@ class Workbook():
 
     # return the cell object at a particular location
     def add_dependency(self, src_cell: Cell, location: str, sheet_name: str) -> None:
-        assert self.sheet_name_exists(sheet_name), sheet_name
+        assert self.sheet_name_exists(sheet_name)
         assert self.is_valid_location(location.upper())
         # check if the sheet already has a cell, if not create one
         if not self.location_exists(sheet_name, location):
