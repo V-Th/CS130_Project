@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-from cell import * 
-from cell_graph import *
-from cell_error import *
-import decimal
+from cell import *
+from cellerror import *
+from cellgraph import *
 import lark
 import logging
 
@@ -106,7 +105,7 @@ class Workbook():
     
     # set the cell of the given location to the given contents
     # return true if successful, false otherwise
-    def set_cell_contents(self, sheet_name: str, location: str, contents:str) -> bool:
+    def set_cell_contents(self, sheet_name: str, location: str, contents:str) -> None:
         if not self.sheet_name_exists(sheet_name):
             return False
         if not self.is_valid_location(location):
@@ -117,15 +116,15 @@ class Workbook():
         # update the cell contents
         self.sheets[sheet_name.upper()][location.upper()].set_contents(contents)
         self.__update_sheet_extent(sheet_name.upper())
-        return True
+        return
 
     # return the cell object at a particular location
     def add_dependency(self, src_cell: Cell, location: str, sheet_name: str) -> Cell:
-        assert self.sheet_name_exists(sheet_name)
+        assert self.sheet_name_exists(sheet_name), sheet_name
         assert self.is_valid_location(location.upper())
         # check if the sheet already has a cell, if not create one
         if not self.location_exists(sheet_name, location):
-            self.sheets[sheet_name][location] = Cell(self.workbook, sheet_name, location, self.graph)
+            self.sheets[sheet_name.upper()][location.upper()] = Cell(self.workbook, sheet_name, location, self.graph)
         dest_cell = self.sheets[sheet_name.upper()][location.upper()]
         self.graph.add_edge(src_cell, dest_cell)
         return dest_cell
