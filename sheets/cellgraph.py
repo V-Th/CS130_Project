@@ -16,7 +16,7 @@ class CellGraph():
         self.low = {}    
         # time is used to keep track of discovery time
         self.time = 0
-        # stackMemmer is an array for faster check whether a node is in stack
+        # stackMember is an array for faster check whether a node is in stack
         self.stackMember = {}
         # currentSet is used to keep track of current strongly connected set    
         self.currentSet = set()

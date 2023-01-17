@@ -112,22 +112,35 @@ class Workbook():
             return False
         # check if the sheet already has a cell, if not create one
         if not self.location_exists(sheet_name, location):
-            self.sheets[sheet_name.upper()][location.upper()] = Cell(self.workbook, sheet_name, location, self.graph)
+            self.sheets[sheet_name.upper()][location.upper()] = Cell(self.workbook, sheet_name, location)
+        # if the sheet already has the cell, remove its edges from graph
+        else:
+            self.graph.remove_node(self.sheets[sheet_name.upper()][location.upper()])
         # update the cell contents
         self.sheets[sheet_name.upper()][location.upper()].set_contents(contents)
         self.__update_sheet_extent(sheet_name.upper())
         return
 
     # return the cell object at a particular location
-    def add_dependency(self, src_cell: Cell, location: str, sheet_name: str) -> Cell:
+    def add_dependency(self, src_cell: Cell, location: str, sheet_name: str) -> None:
         assert self.sheet_name_exists(sheet_name), sheet_name
         assert self.is_valid_location(location.upper())
         # check if the sheet already has a cell, if not create one
         if not self.location_exists(sheet_name, location):
-            self.sheets[sheet_name.upper()][location.upper()] = Cell(self.workbook, sheet_name, location, self.graph)
+            self.sheets[sheet_name.upper()][location.upper()] = Cell(self.workbook, sheet_name, location)
         dest_cell = self.sheets[sheet_name.upper()][location.upper()]
         self.graph.add_edge(src_cell, dest_cell)
-        return dest_cell
+        # check for strongly connected component set
+        self.graph.SCC()
+        # for those in SCC sets with other, set CIRCREF error
+        for set in self.graph.setList:
+            if len(set) == 1:
+                continue
+            for i in set:
+                cell_sheet = i.sheet_name.upper()
+                cell_loc = i.location.upper()
+                self.sheets[cell_sheet][cell_loc].value = CellError("#CIRCREF!", "Circular reference detected")
+        return
     
     # return the contents of the cell at the given location
     def get_cell_contents(self, sheet_name: str, location: str):
@@ -144,14 +157,6 @@ class Workbook():
         if not self.location_exists(sheet_name, location):
             logging.info("Workbook: get_cell_value: location does not exist")
             return None
-        # get strongly connected component set
-        self.graph.SCC()
-        # get values in order of the strongly connected set
-        for set in self.graph.setList:
-            if len(set) > 1:
-                return CellError("#CIRCREF!", "Circular reference detected")
-            for j in set:
-                self.sheets[j.sheet_name.upper()][j.location.upper()].get_value()
         return self.sheets[sheet_name.upper()][location.upper()].get_value()
     
     def get_dependent_cell_value(self, sheet_name:str, location:str):

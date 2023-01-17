@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from cellgraph import *
 from cellerrortype import *
 from cellerror import *
 import decimal 
@@ -10,16 +9,14 @@ from lark.visitors import visit_children_decor
 
 class Cell():
     # constructor 
-    def __init__(self, workbook, sheet_name: str, location: str, graph):
+    def __init__(self, workbook, sheet_name: str, location: str):
         self.contents = None
         self.display_contents = None
         self.value_evaluator = None
         self.value = None
-        self.graph = graph
         self.workbook = workbook
         self.sheet_name = sheet_name
         self.location = location
-        self.dependencies = []
 
     def __repr__(self):
         return self.contents
@@ -37,7 +34,7 @@ class Cell():
                 tree = parser.parse(self.contents)
                 evaluator.cell(tree)
             except AssertionError:
-                detail = f'Bad reference to non-existent cell'
+                detail = f'Bad reference to non-existent sheet'
                 self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
         elif self.contents[0] == '\'':
             self.value_evaluator = CellValueString()
@@ -48,7 +45,6 @@ class Cell():
             except decimal.InvalidOperation:
                 self.value_evaluator = CellValueString()
         self.value = self.value_evaluator.get_value(self)
-        # check for dependencies
 
     # return literal contents of cell
     def get_contents(self):
@@ -65,15 +61,15 @@ class Cell():
             return
         if sheet_name == None:
             sheet_name = self.sheet_name
-        dependent_cell = self.workbook.add_dependency(self, location, sheet_name)
-        self.dependencies.append(dependent_cell)
+        self.workbook.add_dependency(self, location, sheet_name)
     
     # return value calculated from cell contents
     def get_value(self):
+        if self.contents is None:
+            return decimal.Decimal()
         if self.value_evaluator is None:
             return decimal.Decimal()
-        if self.value == None:
-            self.value = self.value_evaluator.get_value(self)
+        self.value = self.value_evaluator.get_value(self)
         return self.value
     
 class CellValueString():
@@ -81,7 +77,7 @@ class CellValueString():
         try:
             if cell.display_contents[0] == '\'':
                 return cell.display_contents[1:]
-            err_type = CellErrorType(cell.display_contents.upper())
+            err_type = CellErrorType(cell.contents)
             detail = f"Written error: {cell.display_contents}"
             return CellError(err_type, detail)
         except:
@@ -212,7 +208,5 @@ class DependencyFinder(lark.visitors.Interpreter):
         if type(values) == None:
             logging.info("DependencyFinder: cell: NoneType value detected")
             return
-        #print('parent: ' + self.parent_cell.location + ' values: ' + str(values))
-        #print(values[0])
         if (values != None and tree.data == 'cell'):
             self.parent_cell.add_dependency(values[0])
