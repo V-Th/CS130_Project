@@ -21,11 +21,7 @@ class _Cell():
     def __repr__(self):
         return self.contents
 
-    # set contents as given string
-    def set_contents(self, contents: str):
-        self.contents = contents.upper()
-        self.display_contents = contents
-        # instiate the right CellValue class type depending on the case
+    def _update_value(self):
         if self.contents[0] == '=':
             self.value_evaluator = CellValueFormula()
         elif self.contents[0] == '\'':
@@ -44,6 +40,13 @@ class _Cell():
         except:
             detail = 'Cannot be parsed; please check input'
             self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+
+    # set contents as given string
+    def set_contents(self, contents: str):
+        self.contents = contents.upper()
+        self.display_contents = contents
+        # instiate the right CellValue class type depending on the case
+        self._update_value()
 
     # return literal contents of cell
     def get_contents(self):
@@ -68,9 +71,11 @@ class _Cell():
             return None
         elif isinstance(self.value, CellError):
             return self.value
-        elif self.value is None:
-            return decimal.Decimal()
-        self.value = self.value_evaluator.get_value(self)
+        elif isinstance(self.value_evaluator, CellValueFormula):
+            self._update_value()
+            if self.value is None:
+                return decimal.Decimal()
+            return self.value
         return self.value
     
 class CellValueString():

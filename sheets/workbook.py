@@ -86,6 +86,8 @@ class Workbook():
             return (self.num_sheets(), sheet_name)
         
         else:
+            if self._sheet_name_exists(sheet_name):
+                raise ValueError
             logging.info(f"Workbook: new_sheet: {sheet_name} is invalid sheet name")
 
     # delete the given spreadsheet            
@@ -93,11 +95,15 @@ class Workbook():
         if self._sheet_name_exists(sheet_name):
             self._sheets.pop(sheet_name.upper())
             self._display_sheets.pop(sheet_name.upper())
+        else:
+            raise KeyError
 
     # return number of rows and columns in the given spreadsheet
     def get_sheet_extent(self, sheet_name: str) -> tuple[int, int]:
         if self._sheet_name_exists(sheet_name):
             return self._extents[sheet_name.upper()]
+        else:
+            raise KeyError
         logging.info("Workbook: get_sheet_extent: sheet name not in extents")
         return None
     
@@ -168,12 +174,14 @@ class Workbook():
     def get_cell_value(self, sheet_name: str, location: str):
         # parameter validation
         if not self._sheet_name_exists(sheet_name):
+            raise ValueError
             logging.info("Workbook: get_cell_value: sheet_name does not exist")
             return None
         if not self._location_exists(sheet_name, location):
+            raise ValueError
             logging.info("Workbook: get_cell_value: location does not exist")
             return None
         return self._sheets[sheet_name.upper()][location.upper()].get_value()
     
     def get_dependent_cell_value(self, sheet_name:str, location:str):
-        return self._sheets[sheet_name.upper()][location.upper()].value
+        return self._sheets[sheet_name.upper()][location.upper()].get_value()
