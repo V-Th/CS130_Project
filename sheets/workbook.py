@@ -50,21 +50,28 @@ class Workbook():
         if len(location) > 8 or len(location) < 2:
             logging.info("Workbook: is_valid_location: invalid cell location, too long or too short")
             return False
-        parser = lark.Lark.open('formulas.lark', start='expression')
+        parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='expression')
         try:
             tree = parser.parse(location)
-            return True
         except:
             print("Workbook: is_valid_location: could not recognize cell reference")
             return False 
+        # check that location is within limits A-ZZZZ and 1-9999
+        a, b = 0, 0
+        for i in range(len(location)):
+            if location[i].upper().isalpha():
+                a = (a * 26) + (ord(location[i].upper()) - ord('A') + 1) 
+            else:
+                b = int(location[i:]) 
+                break
+        if a > 475254 or b > 9999:
+            return False
+        return True
     
     # creates new empty spreadsheet if the given sheet_name is valid 
     # returns a the index and name of the new spreadsheet
     def new_sheet(self, sheet_name:str = None) -> tuple[int, str]:
-        if self.is_valid_sheet(sheet_name):
-            self.sheets[sheet_name.upper()] = {}
-            return (self.num_sheets(), sheet_name)
-        else:
+        if sheet_name == None:
             n = 1
             while(True):
                 if "SHEET" + str(n) not in self.sheets and n <= self.num_sheets() + 1:
@@ -73,10 +80,19 @@ class Workbook():
                     return (n, "Sheet" + str(n))
                 n += 1
 
+        elif self.is_valid_sheet(sheet_name):
+            self.sheets[sheet_name.upper()] = {}
+            self.display_sheets[sheet_name.upper()] = sheet_name
+            return (self.num_sheets(), sheet_name)
+        
+        else:
+            logging.info(f"Workbook: new_sheet: {sheet_name} is invalid sheet name")
+
     # delete the given spreadsheet            
     def del_sheet(self, sheet_name: str) -> None:
         if self.sheet_name_exists(sheet_name):
             self.sheets.pop(sheet_name.upper())
+            self.display_sheets.pop(sheet_name.upper())
 
     # return number of rows and columns in the given spreadsheet
     def get_sheet_extent(self, sheet_name: str) -> tuple[int, int]:
@@ -88,20 +104,20 @@ class Workbook():
     # when a spreadsheet is added or deleted, update the extent of that sheet 
     def __update_sheet_extent(self, sheet_name: str) -> None:
         if self.sheet_name_exists(sheet_name):
-            a = 0
-            b = 0
-            new_extent = (0,0)
-            n = 0
+            max_a, max_b = 0, 0
             for i in self.sheets[sheet_name.upper()].keys():
+                a, b = 0, 0
                 for j in range(len(i)):
                     if i[j].upper().isalpha():
-                        a += ord(i[j].upper()) - 64 + (26 * n)
+                        a = (a * 26) + (ord(i[j].upper()) - ord('A') + 1) 
                     else:
                         b = int(i[j:]) 
                         break
-                if (a,b) > new_extent:
-                    new_extent = (a,b)
-            self.extents[sheet_name.upper()] = new_extent
+                if a > max_a:
+                    max_a = a
+                if b > max_b:
+                    max_b = b
+            self.extents[sheet_name.upper()] = (max_a, max_b)
     
     # set the cell of the given location to the given contents
     # return true if successful, false otherwise
