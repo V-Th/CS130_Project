@@ -33,11 +33,19 @@ class _CellGraph():
     
     # remove a given node from the graph
     def remove_node(self, node):
+        if node in self.graph:
+            self.graph.pop(node)
         for n in self.graph:
             if node in self.graph[n]:
                 self.graph[n].remove(node)
         if node in self.nodes:
             self.nodes.remove(node)
+        if node in self.disc.keys():
+            self.disc.pop(node)
+        if node in self.low.keys():
+            self.low.pop(node)
+        if node in self.stackMember.keys():
+            self.stackMember.pop(node)
             
     # returns whether node1 connects to node2
     def connected(self, node1, node2):

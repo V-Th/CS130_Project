@@ -68,6 +68,8 @@ class _Cell():
             return None
         elif isinstance(self.value, CellError):
             return self.value
+        elif self.value is None:
+            return decimal.Decimal()
         self.value = self.value_evaluator.get_value(self)
         return self.value
     
