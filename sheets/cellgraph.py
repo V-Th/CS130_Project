@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict
 
-class CellGraph():
+class _CellGraph():
     def __init__(self):
         # stores dictionary of sets to store edges
         self.graph = defaultdict(set)
