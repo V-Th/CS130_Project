@@ -1,19 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from collections import defaultdict
-import logging
-import cell
-
-class Node:
-    def __init__(self, n):
-        #self.id = uuid.uuid4().hex[:6].lower()
-        self.id = n
-    def getId(self):
-        return self.id
-    def __str__(self):
-        return str(self.id)
-    def __repr__(self):
-        return self.id
 
 class CellGraph():
     def __init__(self):
@@ -44,12 +31,24 @@ class CellGraph():
         self.nodes.add(node1)
         self.nodes.add(node2)
     
-    # remove a given node from the graph
+   # remove a given node from the graph
     def remove_node(self, node):
         for n in self.graph:
-            if node in self.graph[n]:
-                self.graph[n].remove(node)  
-                self.nodes.remove(node)
+            if id(n) == id(node):
+                self.graph.pop(n)
+                break
+        for n in self.graph:
+            for m in self.graph[n]:
+                if id(m) == id(node):
+                    self.graph[n].remove(m)
+        if node in self.nodes:
+            self.nodes.remove(node)
+        if node in self.disc.keys():
+            self.disc.pop(node)
+        if node in self.low.keys():
+            self.low.pop(node)
+        if node in self.stackMember.keys():
+            self.stackMember.pop(node)
             
     # returns whether node1 connects to node2
     def connected(self, node1, node2):
@@ -153,28 +152,3 @@ class CellGraph():
             if self.disc[n] == -1:
                 self.SCCUtil(n)
         self.setList.reverse()
-
-
-'''
-# Create a graph given in the above diagram
-g1 = CellGraph()
-
-n0 = Node(0)
-n1 = Node(1)
-n2 = Node(2)
-n3 = Node(3)
-n4 = Node(4)
-
-g1.add_edge(1, 0)
-g1.add_edge(0, 2)
-g1.add_edge(2, 1)
-g1.add_edge(0, 3)
-g1.add_edge(3, 4)
-
-
-print("SSC in first graph ")
-g1.SCC()
-g1.printSets()
-
- 
-'''
