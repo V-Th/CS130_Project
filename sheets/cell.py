@@ -19,10 +19,25 @@ class Cell():
         self.workbook = workbook
         self.sheet_name = sheet_name
         self.location = location
-        self.dependencies = []
-
+        
+    # overriding __repr__ to display location and contents of the cell
     def __repr__(self):
-        return self.contents
+        return "Location: (" + self.sheet_name + "," + self.location + ") Contents: " + self.display_contents
+
+    # defining immutable parts of the cell
+    def __members(self):
+        return (self.workbook, self.sheet_name, self.location, self.contents, self.display_contents)
+
+    # overriding __eq__ to make it consistent with hash 
+    def __eq__(self, other):
+        if type(other) is type(self):
+            return self.__members() == other.__members()
+        else:
+            return False
+
+    # computing hash based on immutable parts of the cell
+    def __hash__(self):
+        return hash(self.__members())
 
     # set contents as given string
     def set_contents(self, contents: str):
@@ -65,8 +80,7 @@ class Cell():
             return
         if sheet_name == None:
             sheet_name = self.sheet_name
-        dependent_cell = self.workbook.add_dependency(self, location, sheet_name)
-        self.dependencies.append(dependent_cell)
+        self.workbook.add_dependency(self, location, sheet_name)
     
     # return value calculated from cell contents
     def get_value(self):
