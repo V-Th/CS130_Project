@@ -39,9 +39,11 @@ class _Cell():
         try:
             self.value = self.value_evaluator.get_value(self)
         except AssertionError:
-            detail = f'Bad reference to non-existent sheet'
+            detail = 'Bad reference to non-existent sheet'
             self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
-            return
+        except:
+            detail = 'Cannot be parsed; please check input'
+            self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
     # return literal contents of cell
     def get_contents(self):
@@ -63,11 +65,9 @@ class _Cell():
     # return value calculated from cell contents
     def get_value(self):
         if self.contents is None:
-            return decimal.Decimal()
+            return None
         elif isinstance(self.value, CellError):
             return self.value
-        elif self.value_evaluator is None:
-            return decimal.Decimal()
         self.value = self.value_evaluator.get_value(self)
         return self.value
     
@@ -115,6 +115,14 @@ def check_inputs(value1, value2):
     else:
         return check_v1, check_v2
 
+def convert_str(value):
+    if value is None:
+        return ''
+    elif isinstance(value, CellError):
+        return value
+    else:
+        return str(value)
+
 class FormulaEvaluator(lark.visitors.Interpreter):
     def __init__(self, workbook, sheet_name, parent_cell: _Cell):
        self.workbook = workbook
@@ -154,7 +162,14 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     @visit_children_decor
     def concat_expr(self, values):
         try:
-            return str(values[0]) + str(values[1])
+            v1 = convert_str(values[0])
+            v2 = convert_str(values[1])
+            if isinstance(v1, CellError):
+                return v1
+            elif isinstance(v2, CellError):
+                return v2
+            else:
+                return v1 + v2
         except:
             return CellError(CellErrorType.PARSE_ERROR, "Cannot parse inputs as strings for concatenation")
 
@@ -191,24 +206,13 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             self.parent_cell.add_dependency(tree.children[0])
             other_cell = self.workbook.get_dependent_cell_value(self.sheet_name, tree.children[0])
             if other_cell == None:
-                return decimal.Decimal()
+                return None
             else:
                 return other_cell
         else:
             self.parent_cell.add_dependency(tree.children[1], tree.children[0])
             other_cell = self.workbook.get_dependent_cell_value(tree.children[0], tree.children[1])
             if other_cell == None:
-                return decimal.Decimal()
+                return None
             else:
                 return other_cell 
-
-#class DependencyFinder(lark.visitors.Interpreter):
-#    def __init__(self, parent_cell: Cell):
-#        self.parent_cell = parent_cell
-#
-#    def cell(self, tree):
-#        values = self.visit_children(tree)
-#        if len(values) == 1 and tree.data == 'cell':
-#            
-#        elif tree.data == 'cell':
-            

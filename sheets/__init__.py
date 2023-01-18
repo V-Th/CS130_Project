@@ -1,3 +1,5 @@
+version = 1.0
+
 __all__ = ["workbook", "cellerror", "cellerrortype"]
 
 from .workbook import *

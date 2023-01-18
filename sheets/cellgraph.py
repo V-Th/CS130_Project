@@ -35,8 +35,9 @@ class _CellGraph():
     def remove_node(self, node):
         for n in self.graph:
             if node in self.graph[n]:
-                self.graph[n].remove(node)  
-                self.nodes.remove(node)
+                self.graph[n].remove(node)
+        if node in self.nodes:
+            self.nodes.remove(node)
             
     # returns whether node1 connects to node2
     def connected(self, node1, node2):
