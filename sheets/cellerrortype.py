@@ -12,3 +12,4 @@ class CellErrorType(Enum):
     TYPE_ERROR = "#VALUE!"
     
     DIVIDE_BY_ZERO = "#DIV/0!"
+
