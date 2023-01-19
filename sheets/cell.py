@@ -21,7 +21,7 @@ class _Cell():
     def __repr__(self):
         return self.contents
 
-    def _update_value(self):
+    def update_value(self):
         if self.contents[0] == '=':
             self.value_evaluator = CellValueFormula()
         elif self.contents[0] == '\'':
@@ -43,10 +43,14 @@ class _Cell():
 
     # set contents as given string
     def set_contents(self, contents: str):
+        if contents is None:
+            self.contents = None
+            self.display_contents = None
+            return
         self.contents = contents.upper()
         self.display_contents = contents
         # instiate the right CellValue class type depending on the case
-        self._update_value()
+        self.update_value()
 
     # return literal contents of cell
     def get_contents(self):
@@ -72,7 +76,6 @@ class _Cell():
         elif isinstance(self.value, CellError):
             return self.value
         elif isinstance(self.value_evaluator, CellValueFormula):
-            self._update_value()
             if self.value is None:
                 return decimal.Decimal()
             return self.value

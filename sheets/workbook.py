@@ -77,24 +77,25 @@ class Workbook():
                 if "SHEET" + str(n) not in self._sheets and n <= self.num_sheets() + 1:
                     self._sheets["SHEET" + str(n)] = {}
                     self._display_sheets["SHEET" + str(n)] = "Sheet" + str(n)
+                    self.__update_sheet_extent("Sheet" + str(n))
                     return (n, "Sheet" + str(n))
                 n += 1
-
         elif self._is_valid_sheet(sheet_name):
             self._sheets[sheet_name.upper()] = {}
             self._display_sheets[sheet_name.upper()] = sheet_name
+            self.__update_sheet_extent(sheet_name.upper())
             return (self.num_sheets(), sheet_name)
-        
         else:
             if self._sheet_name_exists(sheet_name):
                 raise ValueError
-            logging.info(f"Workbook: new_sheet: {sheet_name} is invalid sheet name")
 
     # delete the given spreadsheet            
     def del_sheet(self, sheet_name: str) -> None:
         if self._sheet_name_exists(sheet_name):
-            self._sheets.pop(sheet_name.upper())
+            dead_sheet = self._sheets.pop(sheet_name.upper())
             self._display_sheets.pop(sheet_name.upper())
+            for cells in dead_sheet.values():
+                cells.set_contents(None)
         else:
             raise KeyError
 
@@ -104,8 +105,6 @@ class Workbook():
             return self._extents[sheet_name.upper()]
         else:
             raise KeyError
-        logging.info("Workbook: get_sheet_extent: sheet name not in extents")
-        return None
     
     # when a spreadsheet is added or deleted, update the extent of that sheet 
     def __update_sheet_extent(self, sheet_name: str) -> None:
@@ -129,17 +128,20 @@ class Workbook():
     # return true if successful, false otherwise
     def set_cell_contents(self, sheet_name: str, location: str, contents:str) -> None:
         if not self._sheet_name_exists(sheet_name):
-            return False
+            raise KeyError
         if not self._is_valid_location(location):
-            return False
+            raise ValueError
         # check if the sheet already has a cell, if not create one
+        ref_cells = []
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
         # if the sheet already has the cell, remove its edges from graph
         else:
-            self._graph.remove_node(self._sheets[sheet_name.upper()][location.upper()])
+            ref_cells = self._graph.remove_node(self._sheets[sheet_name.upper()][location.upper()])
         # update the cell contents
         self._sheets[sheet_name.upper()][location.upper()].set_contents(contents)
+        for cell in ref_cells:
+            cell.update_value()
         self.__update_sheet_extent(sheet_name.upper())
         return
 
@@ -174,13 +176,11 @@ class Workbook():
     def get_cell_value(self, sheet_name: str, location: str):
         # parameter validation
         if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        if not self._is_valid_location(location):
             raise ValueError
-            logging.info("Workbook: get_cell_value: sheet_name does not exist")
-            return None
         if not self._location_exists(sheet_name, location):
-            raise ValueError
-            logging.info("Workbook: get_cell_value: location does not exist")
-            return None
+            self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
         return self._sheets[sheet_name.upper()][location.upper()].get_value()
     
     def get_dependent_cell_value(self, sheet_name:str, location:str):
