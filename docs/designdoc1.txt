@@ -16,12 +16,16 @@ Logistics (7 pts)
 -----------------
 
 L1.  [2pts] Enumerate all teammates here.
-
+    Anushka Gupta
+    Vinny Thai
 
 L2.  [2pts] What did each teammate focus on during this project?
-
+    Anushka focused on the workbook interface, sheets interactions, and cellgraph.
+    Vinny focused on the cell evaluation and cellerrors.
 
 L3.  [3pts] Approximately how many hours did each teammate spend on the project?
+    Anushka worked 20 hours.
+    Vinny worked 15 hours.
 
 
 Spreadsheet Engine Design (20 pts)
@@ -30,31 +34,55 @@ Spreadsheet Engine Design (20 pts)
 D1.  [3pts] Describe the high-level design abstractions (e.g. classes and/or
      submodules) in your spreadsheet engine, and what purposes these various
      abstractions fulfill.
-
+    Our spreadsheet engines has a Workbook class, CellGraph class, Cell class,
+    CellError class, and CellErrorType class. The Workbook Class handles the user
+    interaction with the spreadsheets and cells. It also handles interactions
+    between cell references. CellGraph keeps track of the cell dependencies and
+    detects if there is cell cycles. Cell evaluates it contents and stores them.
+    CellError and CellErrorType are for reporting the different errors within the
+    workbook.
 
 D2.  [4pts] Why did you choose the design you chose?  Describe other designs
      (or perhaps earlier versions of the above design) that you considered,
      and why you ended up not using them.
-
+    Originally, we planned to store a spreadsheet class that would store cells in
+    the workbook. However, the spreadsheet class ended up with many similar methods
+    to workbook, so it was decided to consolidate spreadsheets as a part of workbook.
+    Besides this, we were happy with our design choices.
 
 D3.  [4pts] At a high level (e.g. pseudocode or higher), enumerate the steps
      that your spreadsheet engine goes through when a caller sets a cell's
      contents.
-
+    The workbook first checks if the sheet and location are valid. Then, the workbook
+    checks whether the cell has ever been used. If not, the cell is made and empty.
+    If so, the cell is removed from the cellgraph that keeps track of references.
+    Then, cell is told to fill its content.
+    In the cell, it sets its content and runs _update_value. This calls an evaluater
+    that is matches the beginning of the cell. If the cell is a literal, then it converts
+    and sets the value. If the cell is a formula, the cell's content is parsed. The parsing
+    adds any references of other cells to cellgraph in workbook to track loops. The parsing
+    evaluates the formula and returns the value. This is set to the cell's value.
 
 D4.  [3pts] How does your spreadsheet engine identify what other cells need
      updating when a cell's contents are changed, and what order to update them?
-
+    The engine updates cellgraph whenever a cell's content is edited to remove references
+    from and to that cell. The cells whose content referenced that cell is returned in
+    and updated without any particular order.
 
 D5.  [3pts] How does your spreadsheet engine identify cycles between cells when
      a cell update is performed?  Are cells in a cycle processed any differently
      from other cells outside of the cycle?
-
+    The engine has a cellgraph class that is a part of every workbook that keeps track
+    of cell references. It runs a SCC detection algorithm to find any cycles. This is
+    ran every time a reference is found while parsing a formula. If a cycle is found,
+    the value is set to a cellerror as well as the other cells in the cycle.
 
 D6.  [3pts] What steps does your spreadsheet engine go through when a sheet is
      deleted from a workbook?  How does it identify cells that may need to be
      recomputed after a sheet-deletion operation?
-
+    When a sheet is deleted, the cells from that sheet are updated with None. By setting
+    the contents of each to None, this updates the cells related to them as mentioned in
+    D4.
 
 Implementation Process (23 pts)
 -------------------------------
@@ -62,31 +90,41 @@ Implementation Process (23 pts)
 P1.  [4pts] How did your team break down and keep track of the various tasks to
      complete for this project?  Did you use the GitHub issue tracker, or some
      other system like Trello, or some other tool?
-
+    We used physical and digital notes to keep track of our individual tasks that
+    we agreed upon during our meetings. We used Discord to tell each other when and
+    what features or bugs we have fixed.
 
 P2.  [4pts] How did you assign tasks to teammates?  Did you stick with your
      task-assignments through the project, or did you shift around tasks as the
      project progressed?  Why?
-
+    At the beginning, we met to discuss how we would assign tasks. Our tasks changed
+    as the project progressed. Vinny was slower to complete some parts of his tasks,
+    and Anushka needed them to implement her code so those parts were done by Anushka.
 
 P3.  [4pts] How would you characterize the quality of your project testing?
      Make sure to touch on these items:  Is it automated?  Is it easy for
      teammates to run?  Is it fast?  Is it reasonably complete?
-
+    We have started to use unittest but have not implemented a unittest discovery.
+    We are still learning about unittest and how to automate this.
 
 P4.  [3pts] What mechanisms did your team use for communication during the
      project?  Did you find them to be effective?  What issues did you
      encounter, if any?
-
+    We used to Discord for communication and meeting calls to keep up with each other.
+    We did not have any issues since most of our discussions were over call.
 
 P5.  [3pts] Did you use any kind of collaborative construction techniques, e.g.
      code reviews or pair-programming, during the project?  If so, what are your
      observations about its usefulness?  Did you find it to have any downsides?
-
+    We used pair-programming to code the integration between our codes. The
+    pair-programming was useful because we could ask each other about their
+    implementations and specifics. This helped identify many of our errors.
 
 P6.  [5pts] What would you like to improve about your team's development
      process, going forward?
-
+    We would like to have more instances of pair-programming to help eliminate
+    bugs. We would also like to have more communication early on to discuss
+    task and designs.
 
 Section F:  CS130 Project 1 Feedback [OPTIONAL]
 -----------------------------------------------

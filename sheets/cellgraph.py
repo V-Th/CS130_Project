@@ -25,16 +25,33 @@ class _CellGraph():
         # st is used to store all the connected ancestors (could be part of SCC)
         self.st = []
         
-    # add edge between node1 and node2 
+    # add edge between node1 and node2
+    # node1 depends on the value of node2
+    # graph[node2] contains all nodes that depend on it
     def add_edge(self, node1, node2):
         self.graph[node2].add(node1)
         self.nodes.add(node1)
         self.nodes.add(node2)
+
+    # iterative dfs search for nodes
+    # takes a list of nodes and finds the nodes that rely on them
+    def dfs_nodes(self, found: list, searched: list):
+        if len(found) == 0:
+            return
+        node = found.pop()
+        if node in searched:
+            searched.remove(node)
+        searched.append(node)
+        for child in self.graph[node]:
+            if child not in found:
+                found.append(child)
+        self.dfs_nodes(found, searched)
     
     # remove a given node from the graph
     def remove_node(self, node):
+        referencing_cells = []
         if node in self.graph:
-            self.graph.pop(node)
+            referencing_cells = list(self.graph.pop(node))
         for n in self.graph:
             if node in self.graph[n]:
                 self.graph[n].remove(node)
@@ -46,6 +63,9 @@ class _CellGraph():
             self.low.pop(node)
         if node in self.stackMember.keys():
             self.stackMember.pop(node)
+        cells_to_update = []
+        self.dfs_nodes(referencing_cells, cells_to_update)
+        return cells_to_update
             
     # returns whether node1 connects to node2
     def connected(self, node1, node2):
