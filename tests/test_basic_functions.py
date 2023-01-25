@@ -33,11 +33,11 @@ class TestWorkbook(unittest.TestCase):
 
     def test_string_cell_2(self): 
         wb.set_cell_contents(name, 'b1', " ")
-        self.assertEqual(wb.get_cell_value(name, 'b1'), " ")
+        self.assertEqual(wb.get_cell_value(name, 'b1'), None)
 
     def test_string_cell_3(self): 
         wb.set_cell_contents(name, 'c1', '   one   ')
-        self.assertEqual(wb.get_cell_value(name, 'c1'), '   one   ')
+        self.assertEqual(wb.get_cell_value(name, 'c1'), 'one')
 
     # test functions
     # add_expr
