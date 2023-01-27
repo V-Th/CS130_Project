@@ -3,11 +3,11 @@ from enum import Enum
 class CellErrorType(Enum):
     PARSE_ERROR = "#ERROR!"
 
-    CIRCULAR_REFERENCE = "#CIRCEF!"
+    CIRCULAR_REFERENCE = "#CIRCREF!"
     
     BAD_REFERENCE = "#REF!"
     
-    BAD_NAME = "#NAME!"
+    BAD_NAME = "#NAME?"
     
     TYPE_ERROR = "#VALUE!"
     
