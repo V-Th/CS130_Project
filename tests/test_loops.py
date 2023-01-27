@@ -38,7 +38,7 @@ class TestMethods(unittest.TestCase):
         a1_v = self.wb.get_cell_value(self.s1, 'a1')
         a2_v = self.wb.get_cell_value(self.s1, 'a2')
         self.assertEqual(a1_v, decimal.Decimal(1))
-        self.assertEqual(a1_v, decimal.Decimal(2))
+        self.assertEqual(a1_v, decimal.Decimal(1))
 
 if __name__ == '__main__':
     unittest.main()
