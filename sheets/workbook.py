@@ -3,47 +3,61 @@ from .cell import _Cell
 from .cellerror import *
 from .cellgraph import _CellGraph
 import lark
+import string
 import logging
+
+_SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
 
 class Workbook():
     def __init__(self):
         self.workbook = self
         self._sheets = {}
         self._extents = {}
-        self._graph = _CellGraph()
         self._display_sheets = {}
+        self._graph = _CellGraph()
 
     def num_sheets(self) -> int:
         return len(self._sheets)
 
     def list_sheets(self) -> list[str]:
-        return self._display_sheets.values()
-    
-    def __list_cells(self, sheet_name) -> list[str]:
-        return self._sheets[sheet_name].keys()
+        return [name for name in self._display_sheets.values()]
     
     def _sheet_name_exists(self, sheet_name: str) -> bool:
         return sheet_name.upper() in (s.upper() for s in self._sheets.keys())
     
-    def _location_exists(self, sheet_name:str, location: str) -> bool:
-        return location.upper() in (l.upper() for l in self._sheets[sheet_name.upper()].keys())
+    def _location_exists(self, sheet_name:str, loc: str) -> bool:
+        cells = (c.upper() for c in self._sheets[sheet_name.upper()].keys())
+        return loc.upper() in cells
     
-    # returns false if given sheet name has leading or trailing whitespace, already exists in the workbook, 
-    # or contains an illegal character 
-    # true otherwise
+    # returns false if given sheet name has leading or trailing whitespace,
+    # already exists in the workbook, or contains an illegal character true
+    # otherwise
     def _is_valid_sheet(self, sheet_name) -> bool:
         if not isinstance(sheet_name, str):
             return False
         if self._sheet_name_exists(sheet_name):
             logging.info("Workbook: is_valid_sheet: sheet name already exists")
             return False
+        if not sheet_name:
+            logging.info("Workbook: is_valid_sheet: empty string")
+            return False
         if (sheet_name.strip() != sheet_name):
             logging.info("Workbook: is_valid_sheet: leading or trailing whitespace")
             return False
-        if ('/' in sheet_name) or ('<' in sheet_name) or ('=' in sheet_name) or ('>' in sheet_name) or ('[' in sheet_name) or (']' in sheet_name) or ('+' in sheet_name):
+        if not set(sheet_name).issubset(_SHEET_CHARS):
             logging.info("Workbook: is_valid_sheet: illegal charcter in sheet name")
             return False
         return True
+
+    def _loc_to_tuple(self, loc: str):
+        a, b = 0, 0
+        for i, char in enumerate(loc):
+            if char.upper().isalpha():
+                a = (a * 26) + (ord(char.upper()) - ord('A') + 1) 
+            else:
+                b = int(loc[i:])
+                break
+        return (a, b)
     
     # returns whether the given string represents a valid location in the sheet
     def _is_valid_location(self, location: str) -> bool:
@@ -52,18 +66,12 @@ class Workbook():
             return False
         parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='expression')
         try:
-            tree = parser.parse(location)
+            parser.parse(location)
         except:
-            print("Workbook: is_valid_location: could not recognize cell reference")
+            logging.info("Workbook: is_valid_location: could not recognize cell reference")
             return False 
         # check that location is within limits A-ZZZZ and 1-9999
-        a, b = 0, 0
-        for i in range(len(location)):
-            if location[i].upper().isalpha():
-                a = (a * 26) + (ord(location[i].upper()) - ord('A') + 1) 
-            else:
-                b = int(location[i:]) 
-                break
+        a, b = self._loc_to_tuple(location)
         if a > 475254 or b > 9999:
             return False
         return True
@@ -71,23 +79,17 @@ class Workbook():
     # creates new empty spreadsheet if the given sheet_name is valid 
     # returns a the index and name of the new spreadsheet
     def new_sheet(self, sheet_name: str = None) -> tuple[int, str]:
-        if sheet_name == None:
+        if sheet_name is None:
             n = 1
-            while(True):
-                if "SHEET" + str(n) not in self._sheets and n <= self.num_sheets() + 1:
-                    self._sheets["SHEET" + str(n)] = {}
-                    self._display_sheets["SHEET" + str(n)] = "Sheet" + str(n)
-                    self.__update_sheet_extent("Sheet" + str(n))
-                    return (n, "Sheet" + str(n))
+            while(self._sheet_name_exists("Sheet" + str(n))):
                 n += 1
-        elif self._is_valid_sheet(sheet_name):
-            self._sheets[sheet_name.upper()] = {}
-            self._display_sheets[sheet_name.upper()] = sheet_name
-            self.__update_sheet_extent(sheet_name.upper())
-            return (self.num_sheets(), sheet_name)
-        else:
-            if self._sheet_name_exists(sheet_name):
-                raise ValueError
+            sheet_name = "Sheet" + str(n)
+        elif not self._is_valid_sheet(sheet_name):
+            raise ValueError
+        self._sheets[sheet_name.upper()] = {}
+        self._display_sheets[sheet_name.upper()] = sheet_name
+        self._update_sheet_extent(sheet_name.upper())
+        return (self.num_sheets(), sheet_name)
 
     # delete the given spreadsheet            
     def del_sheet(self, sheet_name: str) -> None:
@@ -107,22 +109,19 @@ class Workbook():
             raise KeyError
     
     # when a spreadsheet is added or deleted, update the extent of that sheet 
-    def __update_sheet_extent(self, sheet_name: str) -> None:
-        if self._sheet_name_exists(sheet_name):
-            max_a, max_b = 0, 0
-            for i in self._sheets[sheet_name.upper()].keys():
-                a, b = 0, 0
-                for j in range(len(i)):
-                    if i[j].upper().isalpha():
-                        a = (a * 26) + (ord(i[j].upper()) - ord('A') + 1) 
-                    else:
-                        b = int(i[j:]) 
-                        break
-                if a > max_a:
-                    max_a = a
-                if b > max_b:
-                    max_b = b
-            self._extents[sheet_name.upper()] = (max_a, max_b)
+    def _update_sheet_extent(self, sheet_name: str) -> None:
+        if not self._sheet_name_exists(sheet_name):
+            return
+        max_a, max_b = 0, 0
+        for loc in self._sheets[sheet_name.upper()].keys():
+            if self.get_cell_contents(sheet_name, loc) is None:
+                continue
+            a, b = self._loc_to_tuple(loc)
+            if a > max_a:
+                max_a = a
+            if b > max_b:
+                max_b = b
+        self._extents[sheet_name.upper()] = (max_a, max_b)
 
     # Update the cellgraph and check for loops
     def _check_for_loop(self):
@@ -160,7 +159,7 @@ class Workbook():
         self._graph.dfs_nodes([self._sheets[sheet_name.upper()][location.upper()]], ref_cells)
         for cell in ref_cells:
             cell.update_value()
-        self.__update_sheet_extent(sheet_name.upper())
+        self._update_sheet_extent(sheet_name.upper())
         return
 
     # return the cell object at a particular location
