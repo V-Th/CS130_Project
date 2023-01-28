@@ -11,7 +11,6 @@ class _Cell():
     # constructor 
     def __init__(self, workbook, sheet_name: str, location: str):
         self.contents = None
-        self.value_evaluator = None
         self.value = None
         self.workbook = workbook
         self.sheet_name = sheet_name
@@ -20,35 +19,55 @@ class _Cell():
     def __repr__(self):
         return self.contents
 
+    def _is_error(self):
+        try:
+            err_type = CellErrorType(self.contents)
+            detail = f"Written error: {self.contents}"
+            return CellError(err_type, detail)
+        except:
+            return None
+
+    def _is_number(self):
+        try:
+            return decimal.Decimal(self.contents)
+        except:
+            return None
+
     def update_value(self):
         if self.contents is None:
-            return
+            self.value = None
         elif self.contents[0] == '=':
-            self.value_evaluator = CellValueFormula()
-        elif self.contents[0] == '\'':
-            self.value_evaluator = CellValueString()
-        else:
+            parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
+            evaluator = FormulaEvaluator(self.workbook, self.sheet_name, self)
             try:
-                decimal.Decimal(self.contents)
-                self.value_evaluator = CellValueNumber()
-            except decimal.InvalidOperation:
-                self.value_evaluator = CellValueString()
-        try:
-            self.value = self.value_evaluator.get_value(self)
-        except AssertionError:
-            detail = 'Bad reference to non-existent sheet'
-            self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
-        except:
-            detail = 'Cannot be parsed; please check input'
-            self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+                tree = parser.parse(self.contents)
+                self.value =  evaluator.visit(tree)
+            except AssertionError:
+                detail = 'Bad reference to non-existent sheet'
+                self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
+            except:
+                detail = 'Cannot be parsed; please check input'
+                self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+        elif self.contents[0] == '\'':
+            self.value = self.contents[1:]
+        else:
+            num = self._is_number()
+            if num is not None:
+                self.value = num
+                return
+            error = self._is_error()
+            if error is not None:
+                self.value = error
+                return
+            self.value = self.contents
 
     # set contents as given string and update its value
     def set_contents(self, contents: str):
         s_content = contents.strip()
         if not s_content:
             self.contents = None
-            return
-        self.contents = s_content
+        else:
+            self.contents = s_content
         self.update_value()
 
     # return literal contents of cell
@@ -66,38 +85,7 @@ class _Cell():
     
     # return value calculated from cell contents
     def get_value(self):
-        if self.contents is None:
-            return None
-        elif isinstance(self.value, CellError):
-            return self.value
-        elif isinstance(self.value_evaluator, CellValueFormula):
-            if self.value is None:
-                return decimal.Decimal()
-            return self.value
         return self.value
-    
-class CellValueString():
-    def get_value(self, cell: _Cell):
-        try:
-            if cell.contents[0] == '\'':
-                return cell.contents[1:]
-            err_type = CellErrorType(cell.contents)
-            detail = f"Written error: {cell.contents}"
-            return CellError(err_type, detail)
-        except:
-            return cell.contents
-
-class CellValueNumber():
-    def get_value(self, cell: _Cell):
-        return decimal.Decimal(cell.contents)
-
-class CellValueFormula():
-    def get_value(self, cell: _Cell):
-        parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
-        evaluator = FormulaEvaluator(cell.workbook, cell.sheet_name, cell)
-        tree = parser.parse(cell.contents)
-        value = evaluator.visit(tree)
-        return value
 
 def check_arithmetic_input(value):
     if isinstance(value, (decimal.Decimal, CellError)):
