@@ -11,7 +11,6 @@ class _Cell():
     # constructor 
     def __init__(self, workbook, sheet_name: str, location: str):
         self.contents = None
-        self.display_contents = None
         self.value_evaluator = None
         self.value = None
         self.workbook = workbook
@@ -22,7 +21,9 @@ class _Cell():
         return self.contents
 
     def update_value(self):
-        if self.contents[0] == '=':
+        if self.contents is None:
+            return
+        elif self.contents[0] == '=':
             self.value_evaluator = CellValueFormula()
         elif self.contents[0] == '\'':
             self.value_evaluator = CellValueString()
@@ -41,24 +42,18 @@ class _Cell():
             detail = 'Cannot be parsed; please check input'
             self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
-    # set contents as given string
+    # set contents as given string and update its value
     def set_contents(self, contents: str):
-        if contents is None:
+        s_content = contents.strip()
+        if not s_content:
             self.contents = None
-            self.display_contents = None
             return
-        self.contents = contents.upper()
-        self.display_contents = contents
-        # instiate the right CellValue class type depending on the case
+        self.contents = s_content
         self.update_value()
 
     # return literal contents of cell
     def get_contents(self):
-        return self.display_contents
-
-    # return literal contents of cell
-    def get_display_contents(self):
-        return self.display_contents
+        return self.contents
 
     # inform workbook of dependency between this cell and another cell
     def add_dependency(self, location: str, sheet_name: str = None):    
@@ -84,13 +79,13 @@ class _Cell():
 class CellValueString():
     def get_value(self, cell: _Cell):
         try:
-            if cell.display_contents[0] == '\'':
-                return cell.display_contents[1:]
+            if cell.contents[0] == '\'':
+                return cell.contents[1:]
             err_type = CellErrorType(cell.contents)
-            detail = f"Written error: {cell.display_contents}"
+            detail = f"Written error: {cell.contents}"
             return CellError(err_type, detail)
         except:
-            return cell.display_contents
+            return cell.contents
 
 class CellValueNumber():
     def get_value(self, cell: _Cell):
@@ -199,7 +194,10 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         return CellError(CellErrorType(tree.children[0]), tree.children[0])
 
     def number(self, tree):
-        return decimal.Decimal(tree.children[0])
+        num = tree.children[0]
+        if '.' in num:
+            num = num.rstrip('0').rstrip('.') 
+        return decimal.Decimal(num)
     
     def string(self, tree):
         return tree.children[0].value[1:-1]
