@@ -5,6 +5,9 @@ from .cellgraph import _CellGraph
 import lark
 import string
 import logging
+import time
+import threading
+
 
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
 
@@ -16,6 +19,18 @@ class Workbook():
         self._display_sheets = {}
         self._missing_sheets = {}
         self._graph = _CellGraph()
+        self.on_cells_changed = None
+        self.changed_cells = set()
+        self.work()
+    
+    def work(self):
+        if self.on_cells_changed != None and len(self.changed_cells) > 0:
+            self.on_cells_changed(self.changed_cells)
+        self.changed_cells.clear()
+        threading.Timer(0.1, self.work).start()
+    
+    def notify_cells_changed(self, on_cells_changed):
+        self.on_cells_changed = on_cells_changed
 
     def num_sheets(self) -> int:
         return len(self._sheets)
@@ -99,6 +114,7 @@ class Workbook():
         ref_cells = []
         self._graph.dfs_nodes(cells, ref_cells)
         for cell in ref_cells:
+            self.changed_cells.add((cell.sheet_name, cell.location))
             cell.update_value()
 
     # delete the given spreadsheet
@@ -172,6 +188,7 @@ class Workbook():
         self._check_for_loop()
         self._update_references([self._sheets[sheet_name.upper()][loc.upper()]])
         self._update_sheet_extent(sheet_name.upper())
+        self.changed_cells.add((sheet_name, loc))
         return
 
     # return the cell object at a particular location
@@ -185,6 +202,7 @@ class Workbook():
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
+            #self.changed_cells.add((sheet_name, location[0:]))
         dest_cell = self._sheets[sheet_name.upper()][location.upper()]
         self._graph.add_edge(src_cell, dest_cell)
         self._check_for_loop()
