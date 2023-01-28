@@ -151,7 +151,6 @@ class Workbook():
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
-        # if the sheet already has the cell, remove its edges from graph
         else:
             self._graph.remove_node(self._sheets[sheet_name.upper()][location.upper()])
         # update the cell contents
@@ -193,7 +192,4 @@ class Workbook():
             raise ValueError
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
-        return self._sheets[sheet_name.upper()][location.upper()].get_value()
-    
-    def get_dependent_cell_value(self, sheet_name:str, location:str):
         return self._sheets[sheet_name.upper()][location.upper()].get_value()

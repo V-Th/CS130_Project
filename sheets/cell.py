@@ -200,15 +200,8 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     def cell(self, tree):
         if (len(tree.children) == 1):
             self.parent_cell.add_dependency(tree.children[0])
-            other_cell = self.workbook.get_dependent_cell_value(self.sheet_name, tree.children[0])
-            if other_cell == None:
-                return None
-            else:
-                return other_cell
+            other_cell = self.workbook.get_cell_value(self.sheet_name, tree.children[0])
         else:
             self.parent_cell.add_dependency(tree.children[1], tree.children[0])
-            other_cell = self.workbook.get_dependent_cell_value(tree.children[0], tree.children[1])
-            if other_cell == None:
-                return None
-            else:
-                return other_cell 
+            other_cell = self.workbook.get_cell_value(tree.children[0], tree.children[1])
+        return other_cell
