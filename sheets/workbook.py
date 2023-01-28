@@ -14,6 +14,7 @@ class Workbook():
         self._sheets = {}
         self._extents = {}
         self._display_sheets = {}
+        self._missing_sheets = {}
         self._graph = _CellGraph()
 
     def num_sheets(self) -> int:
@@ -89,7 +90,10 @@ class Workbook():
         self._sheets[sheet_name.upper()] = {}
         self._display_sheets[sheet_name.upper()] = sheet_name
         self._update_sheet_extent(sheet_name.upper())
-        return (self.num_sheets(), sheet_name)
+        if sheet_name.upper() in self._missing_sheets.keys():
+            for cell in self._missing_sheets[sheet_name.upper()]:
+                cell.update_value()
+        return (self.num_sheets()-1, sheet_name)
 
     def _update_references(self, cells: list):
         ref_cells = []
@@ -159,6 +163,10 @@ class Workbook():
             self._sheets[sheet_name.upper()][loc.upper()] = _Cell(self.workbook, sheet_name, loc)
         else:
             self._graph.remove_node(self._sheets[sheet_name.upper()][loc.upper()])
+            for f_sheet in self._missing_sheets.keys():
+                cells = self._missing_sheets[f_sheet]
+                if self._sheets[sheet_name.upper()][loc.upper()] in cells:
+                    cells.remove(self._sheets[sheet_name.upper()][loc.upper()])
         # update the cell contents
         self._sheets[sheet_name.upper()][loc.upper()].set_contents(contents)
         self._check_for_loop()
@@ -168,7 +176,11 @@ class Workbook():
 
     # return the cell object at a particular location
     def add_dependency(self, src_cell: _Cell, location: str, sheet_name: str) -> None:
-        assert self._sheet_name_exists(sheet_name)
+        if not self._sheet_name_exists(sheet_name):
+            if sheet_name.upper() not in self._missing_sheets.keys():
+                self._missing_sheets[sheet_name.upper()] = []
+            self._missing_sheets[sheet_name.upper()].append(src_cell)
+            assert self._sheet_name_exists(sheet_name)
         assert self._is_valid_location(location.upper())
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, location):
