@@ -15,7 +15,7 @@ class TestWorkbook(unittest.TestCase):
     def test_extent_1(self):
         self.wb.set_cell_contents(self.name1, 'a1', '=d4')
         self.assertEqual(self.wb.get_sheet_extent(self.name1), (1,1))
-        self.wb.set_cell_contents(self.name1, 'd1', '10')
+        self.wb.set_cell_contents(self.name1, 'd4', '10')
         self.assertEqual(self.wb.get_sheet_extent(self.name1), (4,4))
     
     # A sheet's extent should shrink as the maximal cell's contents are cleared.
@@ -23,7 +23,7 @@ class TestWorkbook(unittest.TestCase):
         extent = self.wb.get_sheet_extent(self.name1)
         self.wb.set_cell_contents(self.name1, 'e5', '10')
         self.assertEqual(self.wb.get_sheet_extent(self.name1), (5,5))
-        self.wb.set_cell_contents(self.name1, 'e5', 'None')
+        self.wb.set_cell_contents(self.name1, 'e5', '')
         self.assertEqual(self.wb.get_sheet_extent(self.name1), extent)
     
     def test_extent_3(self):
