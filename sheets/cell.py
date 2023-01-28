@@ -41,6 +41,8 @@ class _Cell():
         try:
             tree = parser.parse(self.contents)
             self.value =  evaluator.visit(tree)
+            if self.value is None:
+                self.value = decimal.Decimal()
         except AssertionError:
             detail = 'Bad reference to non-existent sheet'
             self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
@@ -62,11 +64,12 @@ class _Cell():
 
     # set contents as given string and update its value
     def set_contents(self, contents: str):
-        s_content = contents.strip()
-        if not s_content:
+        if contents is None:
+            self.contents = None
+        elif not contents.strip():
             self.contents = None
         else:
-            self.contents = s_content
+            self.contents = contents.strip()
         self.update_value()
 
     # return literal contents of cell

@@ -117,6 +117,13 @@ class TestWorkbook(unittest.TestCase):
     def test_div_formula_3(self): 
         wb.set_cell_contents(name, 'e1', '=a1/b1/5')  # 1
         self.assertEqual(wb.get_cell_value(name, 'e1'), decimal.Decimal(1))
+
+    # cell referencing
+    def test_cell_reference_1(self):
+        wb.set_cell_contents(name, 'a1', '=a2')
+        self.assertEqual(wb.get_cell_value(name, 'a1'), decimal.Decimal())
+        wb.set_cell_contents(name, 'a2', '5')
+        self.assertEqual(wb.get_cell_value(name, 'a1'), decimal.Decimal(5))
     
     # errors
     # cycles

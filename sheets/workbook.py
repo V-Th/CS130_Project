@@ -91,13 +91,20 @@ class Workbook():
         self._update_sheet_extent(sheet_name.upper())
         return (self.num_sheets(), sheet_name)
 
-    # delete the given spreadsheet            
+    def _update_references(self, cells: list):
+        ref_cells = []
+        self._graph.dfs_nodes(cells, ref_cells)
+        for cell in ref_cells:
+            cell.update_value()
+
+    # delete the given spreadsheet
+    # Take cells of deleted sheet and updates them to None
+    # This triggers the update_value for cells relying on them
     def del_sheet(self, sheet_name: str) -> None:
         if self._sheet_name_exists(sheet_name):
             dead_sheet = self._sheets.pop(sheet_name.upper())
             self._display_sheets.pop(sheet_name.upper())
-            for cells in dead_sheet.values():
-                cells.set_contents(None)
+            self._update_references(list(dead_sheet.values()))
         else:
             raise KeyError
 
@@ -142,23 +149,20 @@ class Workbook():
     
     # set the cell of the given location to the given contents
     # return true if successful, false otherwise
-    def set_cell_contents(self, sheet_name: str, location: str, contents:str) -> None:
+    def set_cell_contents(self, sheet_name: str, loc: str, contents:str) -> None:
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
-        if not self._is_valid_location(location):
+        if not self._is_valid_location(loc):
             raise ValueError
         # check if the sheet already has a cell, if not create one
-        if not self._location_exists(sheet_name, location):
-            self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
+        if not self._location_exists(sheet_name, loc):
+            self._sheets[sheet_name.upper()][loc.upper()] = _Cell(self.workbook, sheet_name, loc)
         else:
-            self._graph.remove_node(self._sheets[sheet_name.upper()][location.upper()])
+            self._graph.remove_node(self._sheets[sheet_name.upper()][loc.upper()])
         # update the cell contents
-        self._sheets[sheet_name.upper()][location.upper()].set_contents(contents)
+        self._sheets[sheet_name.upper()][loc.upper()].set_contents(contents)
         self._check_for_loop()
-        ref_cells = []
-        self._graph.dfs_nodes([self._sheets[sheet_name.upper()][location.upper()]], ref_cells)
-        for cell in ref_cells:
-            cell.update_value()
+        self._update_references([self._sheets[sheet_name.upper()][loc.upper()]])
         self._update_sheet_extent(sheet_name.upper())
         return
 
@@ -171,7 +175,6 @@ class Workbook():
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
         dest_cell = self._sheets[sheet_name.upper()][location.upper()]
         self._graph.add_edge(src_cell, dest_cell)
-        # check for strongly connected component set
         self._check_for_loop()
     
     # return the contents of the cell at the given location
