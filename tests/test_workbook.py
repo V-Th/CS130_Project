@@ -130,17 +130,17 @@ class TestWorkbook(unittest.TestCase):
     # the corresponding error value.
     def test_errorstring(self):
         self.wb.set_cell_contents(self.name1, 'a1', '#ERROR!')
-        self.wb.set_cell_contents(self.name1, 'b1', '#CIRCEF!')
+        self.wb.set_cell_contents(self.name1, 'b1', '#CIRCREF!')
         self.wb.set_cell_contents(self.name1, 'c1', '#REF!')
-        self.wb.set_cell_contents(self.name1, 'd1', '#NAME!')
+        self.wb.set_cell_contents(self.name1, 'd1', '#NAME?')
         self.wb.set_cell_contents(self.name1, 'e1', '#VALUE!')
         self.wb.set_cell_contents(self.name1, 'f1', '#DIV/0!')
-        self.assertEqual(self.wb.get_cell_value(self.name1, 'a1'), CellError)
-        self.assertEqual(self.wb.get_cell_value(self.name1, 'b1'), CellError)
-        self.assertEqual(self.wb.get_cell_value(self.name1, 'c1'), CellError)
-        self.assertEqual(self.wb.get_cell_value(self.name1, 'd1'), CellError)
-        self.assertEqual(self.wb.get_cell_value(self.name1, 'e1'), CellError)
-        self.assertEqual(self.wb.get_cell_value(self.name1, 'f1'), CellError)
+        self.assertIsInstance(self.wb.get_cell_value(self.name1, 'a1'), CellError)
+        self.assertIsInstance(self.wb.get_cell_value(self.name1, 'b1'), CellError)
+        self.assertIsInstance(self.wb.get_cell_value(self.name1, 'c1'), CellError)
+        self.assertIsInstance(self.wb.get_cell_value(self.name1, 'd1'), CellError)
+        self.assertIsInstance(self.wb.get_cell_value(self.name1, 'e1'), CellError)
+        self.assertIsInstance(self.wb.get_cell_value(self.name1, 'f1'), CellError)
 
 
 if __name__ == '__main__':
