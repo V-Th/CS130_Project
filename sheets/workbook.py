@@ -123,6 +123,23 @@ class Workbook():
                 if b > max_b:
                     max_b = b
             self._extents[sheet_name.upper()] = (max_a, max_b)
+
+    # Update the cellgraph and check for loops
+    def _check_for_loop(self):
+        self._graph.SCC()
+        # for those in SCC sets with other, set CIRCREF error
+        for set in self._graph.setList:
+            if len(set) == 1:
+                for node in set:
+                    if node in self._graph.graph[node]:
+                        node.value = CellError(CellErrorType("#CIRCREF!"), "Circular reference detected")
+                continue
+            for i in set:
+                cell_sheet = i.sheet_name.upper()
+                cell_loc = i.location.upper()
+                cell_err = CellError(CellErrorType("#CIRCREF!"), "Circular reference detected")
+                self._sheets[cell_sheet][cell_loc].value = cell_err
+        return
     
     # set the cell of the given location to the given contents
     # return true if successful, false otherwise
@@ -132,14 +149,16 @@ class Workbook():
         if not self._is_valid_location(location):
             raise ValueError
         # check if the sheet already has a cell, if not create one
-        ref_cells = []
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
         # if the sheet already has the cell, remove its edges from graph
         else:
-            ref_cells = self._graph.remove_node(self._sheets[sheet_name.upper()][location.upper()])
+            self._graph.remove_node(self._sheets[sheet_name.upper()][location.upper()])
         # update the cell contents
         self._sheets[sheet_name.upper()][location.upper()].set_contents(contents)
+        self._check_for_loop()
+        ref_cells = []
+        self._graph.dfs_nodes([self._sheets[sheet_name.upper()][location.upper()]], ref_cells)
         for cell in ref_cells:
             cell.update_value()
         self.__update_sheet_extent(sheet_name.upper())
@@ -155,22 +174,15 @@ class Workbook():
         dest_cell = self._sheets[sheet_name.upper()][location.upper()]
         self._graph.add_edge(src_cell, dest_cell)
         # check for strongly connected component set
-        self._graph.SCC()
-        # for those in SCC sets with other, set CIRCREF error
-        for set in self._graph.setList:
-            if len(set) == 1:
-                continue
-            for i in set:
-                cell_sheet = i.sheet_name.upper()
-                cell_loc = i.location.upper()
-                self._sheets[cell_sheet][cell_loc].value = CellError("#CIRCREF!", "Circular reference detected")
-        return
+        self._check_for_loop()
     
     # return the contents of the cell at the given location
     def get_cell_contents(self, sheet_name: str, location: str):
-        if self._sheet_name_exists(sheet_name) and self._location_exists(sheet_name, location):
-            return self._sheets[sheet_name.upper()][location.upper()].get_contents()
-        return None
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        if not self._is_valid_location(location):
+            raise ValueError
+        return self._sheets[sheet_name.upper()][location.upper()].get_contents()
 
     # return the value of the cell at the given location    
     def get_cell_value(self, sheet_name: str, location: str):
