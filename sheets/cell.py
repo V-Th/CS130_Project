@@ -4,8 +4,10 @@ from .cellerrortype import *
 from .cellerror import *
 import decimal 
 import lark
-import logging
 from lark.visitors import visit_children_decor
+
+# Parser for cell contents
+parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
 
 class _Cell():
     # constructor 
@@ -23,43 +25,40 @@ class _Cell():
         try:
             err_type = CellErrorType(self.contents)
             detail = f"Written error: {self.contents}"
-            return CellError(err_type, detail)
+            self.value = CellError(err_type, detail)
+            return True
         except:
-            return None
+            return False
 
-    def _is_number(self):
+    def _is_number_or_string(self):
         try:
-            return decimal.Decimal(self.contents)
+            self.value = decimal.Decimal(self.contents)
         except:
-            return None
+            self.value = self.contents
+
+    def _eval_formula(self):
+        evaluator = FormulaEvaluator(self.workbook, self.sheet_name, self)
+        try:
+            tree = parser.parse(self.contents)
+            self.value =  evaluator.visit(tree)
+        except AssertionError:
+            detail = 'Bad reference to non-existent sheet'
+            self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
+        except:
+            detail = 'Cannot be parsed; please check input'
+            self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+        return
 
     def update_value(self):
         if self.contents is None:
             self.value = None
         elif self.contents[0] == '=':
-            parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
-            evaluator = FormulaEvaluator(self.workbook, self.sheet_name, self)
-            try:
-                tree = parser.parse(self.contents)
-                self.value =  evaluator.visit(tree)
-            except AssertionError:
-                detail = 'Bad reference to non-existent sheet'
-                self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
-            except:
-                detail = 'Cannot be parsed; please check input'
-                self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+            self._eval_formula()
         elif self.contents[0] == '\'':
             self.value = self.contents[1:]
         else:
-            num = self._is_number()
-            if num is not None:
-                self.value = num
-                return
-            error = self._is_error()
-            if error is not None:
-                self.value = error
-                return
-            self.value = self.contents
+            if not self._is_error():
+                self._is_number_or_string()
 
     # set contents as given string and update its value
     def set_contents(self, contents: str):
@@ -73,15 +72,6 @@ class _Cell():
     # return literal contents of cell
     def get_contents(self):
         return self.contents
-
-    # inform workbook of dependency between this cell and another cell
-    def add_dependency(self, location: str, sheet_name: str = None):    
-        if location == None:
-            logging.info("Cell: add_dependency: could not add dependency - NoneType")
-            return
-        if sheet_name == None:
-            sheet_name = self.sheet_name
-        self.workbook.add_dependency(self, location, sheet_name)
     
     # return value calculated from cell contents
     def get_value(self):
@@ -117,10 +107,10 @@ def convert_str(value):
         return str(value)
 
 class FormulaEvaluator(lark.visitors.Interpreter):
-    def __init__(self, workbook, sheet_name, parent_cell: _Cell):
-       self.workbook = workbook
-       self.sheet_name = sheet_name
-       self.parent_cell = parent_cell
+    def __init__(self, workbook, sheet_name, this_cell: _Cell):
+       self.wb = workbook
+       self.sheet = sheet_name
+       self.this_cell = this_cell
 
     @visit_children_decor
     def add_expr(self, values):
@@ -184,24 +174,23 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     def number(self, tree):
         num = tree.children[0]
         if '.' in num:
-            num = num.rstrip('0').rstrip('.') 
+            num = num.rstrip('0').rstrip('.')
         return decimal.Decimal(num)
     
     def string(self, tree):
         return tree.children[0].value[1:-1]
     
     def parens(self, tree):
-        result = self.visit(tree.children[0])
-        return result
+        return self.visit(tree.children[0])
 
     def sheetname(self, tree):
         return tree.children[0]
 
     def cell(self, tree):
         if (len(tree.children) == 1):
-            self.parent_cell.add_dependency(tree.children[0])
-            other_cell = self.workbook.get_cell_value(self.sheet_name, tree.children[0])
+            self.wb.add_dependency(self.this_cell, tree.children[0], self.sheet)
+            other_cell = self.wb.get_cell_value(self.sheet, tree.children[0])
         else:
-            self.parent_cell.add_dependency(tree.children[1], tree.children[0])
-            other_cell = self.workbook.get_cell_value(tree.children[0], tree.children[1])
+            self.wb.add_dependency(self.this_cell, tree.children[1], tree.children[0])
+            other_cell = self.wb.get_cell_value(tree.children[0], tree.children[1])
         return other_cell
