@@ -35,23 +35,26 @@ class _CellGraph():
 
     # iterative dfs search for nodes
     # takes a list of nodes and finds the nodes that rely on them
-    def dfs_nodes(self, found: list, searched: list):
-        if len(found) == 0:
-            return
-        node = found.pop()
-        if node in searched:
-            searched.remove(node)
-        searched.append(node)
-        for child in self.graph[node]:
-            if child not in found:
-                found.append(child)
-        self.dfs_nodes(found, searched)
+    def dfs_nodes(self, remianing: list, visited: list):
+        while len(remianing) != 0:
+            node = remianing.pop()
+            node_scc = set()
+            for scc in self.setList:
+                if node in scc:
+                    node_scc = scc
+            # If node was visited, it has an earlier dependency
+            # It would have been updated twice
+            if node in visited:
+                visited.remove(node)
+            visited.append(node)
+            for child in self.graph[node]:
+                if child in node_scc:
+                    continue
+                if child not in remianing:
+                    remianing.append(child)
     
     # remove a given node from the graph
     def remove_node(self, node):
-        referencing_cells = []
-        if node in self.graph:
-            referencing_cells = list(self.graph.pop(node))
         for n in self.graph:
             if node in self.graph[n]:
                 self.graph[n].remove(node)
@@ -63,9 +66,6 @@ class _CellGraph():
             self.low.pop(node)
         if node in self.stackMember.keys():
             self.stackMember.pop(node)
-        cells_to_update = []
-        self.dfs_nodes(referencing_cells, cells_to_update)
-        return cells_to_update
             
     # returns whether node1 connects to node2
     def connected(self, node1, node2):
@@ -156,6 +156,8 @@ class _CellGraph():
         # and Initialize parent and visited,
         # and ap(articulation point) arrays
         
+        self.time = 0
+        self.setList.clear()
         self.st.clear()
         for n in self.nodes:
             self.disc[n] = -1
