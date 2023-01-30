@@ -90,6 +90,12 @@ class Workbook():
         if a > 475254 or b > 9999:
             return False
         return True
+
+    # Check missing sheets to update cells that may need it
+    def _check_missing_sheets(self, sheet_name: str):
+        if sheet_name.upper() in self._missing_sheets.keys():
+            for cell in self._missing_sheets[sheet_name.upper()]:
+                cell.update_value()
     
     # creates new empty spreadsheet if the given sheet_name is valid 
     # returns a the index and name of the new spreadsheet
@@ -104,9 +110,7 @@ class Workbook():
         self._sheets[sheet_name.upper()] = {}
         self._display_sheets[sheet_name.upper()] = sheet_name
         self._update_sheet_extent(sheet_name.upper())
-        if sheet_name.upper() in self._missing_sheets.keys():
-            for cell in self._missing_sheets[sheet_name.upper()]:
-                cell.update_value()
+        self._check_missing_sheets(sheet_name)
         return (self.num_sheets()-1, sheet_name)
 
     def _update_references(self, cells: list):
@@ -123,6 +127,7 @@ class Workbook():
         if self._sheet_name_exists(sheet_name):
             dead_sheet = self._sheets.pop(sheet_name.upper())
             self._display_sheets.pop(sheet_name.upper())
+            self._extents.pop(sheet_name.upper())
             self._update_references(list(dead_sheet.values()))
         else:
             raise KeyError
@@ -223,3 +228,60 @@ class Workbook():
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
         return self._sheets[sheet_name.upper()][location.upper()].get_value()
+
+    def rename_sheet(self, sheet_name: str, new_name: str):
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        if not self._is_valid_sheet(new_name):
+            raise ValueError
+        # Replace sheet name in all dictionaries in the workbook
+        self._display_sheets.pop(sheet_name.upper())
+        self._display_sheets[new_name.upper()] = new_name
+        extent = self._extents.pop(sheet_name.upper())
+        self._extents[new_name.upper()] = extent
+        loc_cells = self._sheets.pop(sheet_name.upper())
+        self._sheets[new_name.upper()] = {}
+        # Change the sheet name value within the cells of the sheet
+        while loc_cells:
+            loc, cell = loc_cells.popitem()
+            cell.sheet_name = new_name
+            self._sheets[new_name.upper()][loc.upper()] = cell
+        # Change the sheet name references in formulas
+        cells = list(self._sheets[new_name.upper()].values())
+        direct_refs = self._graph.direct_refs(cells)
+        new_ref = new_name
+        if ' ' in new_name:
+            new_ref = "\'"+new_name+"\'"
+        for cell in direct_refs:
+            while (True):
+                ref_idx = cell.contents.upper().find(sheet_name.upper()+'!')
+                if ref_idx == -1:
+                    break
+                sheet_ref = cell.contents[ref_idx:ref_idx+len(sheet_name)]
+                cell.contents = cell.contents.replace(sheet_ref, new_ref)
+        self._check_missing_sheets(new_name)
+    
+    def move_sheet(self, sheet_name: str, index: int):
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        if index >= self.num_sheets():
+            raise IndexError
+        sheets = list(self._display_sheets.items())
+        entry = (sheet_name.upper(), self._display_sheets[sheet_name.upper()])
+        old_idx = sheets.index(entry)
+        sheets[old_idx], sheets[index] = sheets[index], sheets[old_idx]
+        self._display_sheets = dict(sheets)
+
+    def copy_sheet(self, sheet_name: str):
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        sheet = self._sheets[sheet_name.upper()]
+        copy_name = self._display_sheets[sheet_name.upper()]
+        n = 1
+        while (self._sheet_name_exists(copy_name + "_" + str(n))):
+            n += 1
+        copy_name = copy_name + '_' + str(n)
+        self.new_sheet(copy_name)
+        for loc, cell in sheet:
+            self.set_cell_contents(copy_name, loc, cell.get_contents())
+        self._check_missing_sheets(copy_name)
