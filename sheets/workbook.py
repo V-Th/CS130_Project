@@ -97,6 +97,7 @@ class Workbook():
                     continue
                 self.changed_cells.append((cell.sheet_name[0:], cell.location[0:]))
             self._update_references(self._missing_sheets[sheet_name.upper()])
+            self._call_notification()
     
     # creates new empty spreadsheet if the given sheet_name is valid 
     # returns a the index and name of the new spreadsheet
@@ -126,7 +127,6 @@ class Workbook():
             if cell in original_set:
                 continue
             self.changed_cells.append((cell.sheet_name[0:], cell.location[0:]))
-        self._call_notification()
 
     # delete the given spreadsheet
     # Take cells of deleted sheet and updates them to None
@@ -137,6 +137,7 @@ class Workbook():
             self._display_sheets.pop(sheet_name.upper())
             self._extents.pop(sheet_name.upper())
             self._update_references(list(dead_sheet.values()))
+            self._call_notification()
         else:
             raise KeyError
 
@@ -178,10 +179,9 @@ class Workbook():
                 cell_err = CellError(CellErrorType("#CIRCREF!"), "Circular reference detected")
                 self._sheets[cell_sheet][cell_loc].value = cell_err
         return
-    
-    # set the cell of the given location to the given contents
-    # return true if successful, false otherwise
-    def set_cell_contents(self, sheet_name: str, loc: str, contents:str) -> None:
+
+    # Internal call to add cells to sheet
+    def _set_cell_contents(self, sheet_name: str, loc: str, contents:str):
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
         if not self._is_valid_location(loc):
@@ -200,8 +200,14 @@ class Workbook():
         self._sheets[sheet_name.upper()][loc.upper()].set_contents(contents)
         if (old_val != self._sheets[sheet_name.upper()][loc.upper()].get_value()):
             self.changed_cells.append((sheet_name, loc))
+    
+    # set the cell of the given location to the given contents
+    # return true if successful, false otherwise
+    def set_cell_contents(self, sheet_name: str, loc: str, contents:str) -> None:
+        self._set_cell_contents(sheet_name, loc, contents)
         self._check_for_loop()
         self._update_references([self._sheets[sheet_name.upper()][loc.upper()]])
+        self._call_notification()
         self._update_sheet_extent(sheet_name.upper())
         return
 
@@ -293,5 +299,6 @@ class Workbook():
         copy_name = copy_name + '_' + str(n)
         self.new_sheet(copy_name)
         for loc, cell in sheet:
-            self.set_cell_contents(copy_name, loc, cell.get_contents())
+            self._set_cell_contents(copy_name, loc, cell.get_contents())
+        self._call_notification()
         self._check_missing_sheets(copy_name)
