@@ -8,9 +8,8 @@ import logging
 import time
 import threading
 
-
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
-
+    
 class Workbook():
     def __init__(self):
         self.workbook = self
@@ -114,7 +113,7 @@ class Workbook():
         ref_cells = []
         self._graph.dfs_nodes(cells, ref_cells)
         for cell in ref_cells:
-            self.changed_cells.add((cell.sheet_name, cell.location))
+            self.changed_cells.add((cell.sheet_name[0:], cell.location[0:]))
             cell.update_value()
 
     # delete the given spreadsheet
@@ -202,7 +201,6 @@ class Workbook():
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
-            #self.changed_cells.add((sheet_name, location[0:]))
         dest_cell = self._sheets[sheet_name.upper()][location.upper()]
         self._graph.add_edge(src_cell, dest_cell)
         self._check_for_loop()
