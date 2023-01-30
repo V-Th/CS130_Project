@@ -2,10 +2,12 @@
 from .cell import _Cell
 from .cellerror import *
 from .cellgraph import _CellGraph
+import re
 import lark
 import string
 import logging
 
+_RE = re.compile('[A-Za-z]+[1-9][0-9]*')
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
     
 class Workbook():
@@ -34,11 +36,10 @@ class Workbook():
         return [name for name in self._display_sheets.values()]
     
     def _sheet_name_exists(self, sheet_name: str) -> bool:
-        return sheet_name.upper() in (s.upper() for s in self._sheets.keys())
+        return sheet_name.upper() in self._sheets.keys()
     
     def _location_exists(self, sheet_name:str, loc: str) -> bool:
-        cells = (c.upper() for c in self._sheets[sheet_name.upper()].keys())
-        return loc.upper() in cells
+        return loc.upper() in self._sheets[sheet_name.upper()].keys()
     
     # returns false if given sheet name has leading or trailing whitespace,
     # already exists in the workbook, or contains an illegal character true
@@ -75,12 +76,8 @@ class Workbook():
         if len(location) > 8 or len(location) < 2:
             logging.info("Workbook: is_valid_location: invalid cell location, too long or too short")
             return False
-        parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='expression')
-        try:
-            parser.parse(location)
-        except:
-            logging.info("Workbook: is_valid_location: could not recognize cell reference")
-            return False 
+        if _RE.match(location) is None:
+            return False
         # check that location is within limits A-ZZZZ and 1-9999
         a, b = self._loc_to_tuple(location)
         if a > 475254 or b > 9999:
@@ -232,6 +229,8 @@ class Workbook():
             raise KeyError
         if not self._is_valid_location(location):
             raise ValueError
+        if not self._location_exists(sheet_name, location):
+            return None
         return self._sheets[sheet_name.upper()][location.upper()].get_contents()
 
     # return the value of the cell at the given location    
@@ -242,7 +241,7 @@ class Workbook():
         if not self._is_valid_location(location):
             raise ValueError
         if not self._location_exists(sheet_name, location):
-            self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
+            return None
         return self._sheets[sheet_name.upper()][location.upper()].get_value()
 
     def rename_sheet(self, sheet_name: str, new_name: str):
