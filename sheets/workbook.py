@@ -5,8 +5,6 @@ from .cellgraph import _CellGraph
 import lark
 import string
 import logging
-import time
-import threading
 
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
     
@@ -19,14 +17,12 @@ class Workbook():
         self._missing_sheets = {}
         self._graph = _CellGraph()
         self.on_cells_changed = None
-        self.changed_cells = set()
-        self.work()
+        self.changed_cells = []
     
-    def work(self):
-        if self.on_cells_changed != None and len(self.changed_cells) > 0:
-            self.on_cells_changed(self.changed_cells)
+    def _call_notification(self):
+        if self.on_cells_changed is not None:
+            self.on_cells_changed(self, self.changed_cells)
         self.changed_cells.clear()
-        threading.Timer(0.1, self.work).start()
     
     def notify_cells_changed(self, on_cells_changed):
         self.on_cells_changed = on_cells_changed
@@ -95,7 +91,12 @@ class Workbook():
     def _check_missing_sheets(self, sheet_name: str):
         if sheet_name.upper() in self._missing_sheets.keys():
             for cell in self._missing_sheets[sheet_name.upper()]:
+                old_val = cell.get_value()
                 cell.update_value()
+                if (old_val == cell.get_value()):
+                    continue
+                self.changed_cells.append((cell.sheet_name[0:], cell.location[0:]))
+            self._update_references(self._missing_sheets[sheet_name.upper()])
     
     # creates new empty spreadsheet if the given sheet_name is valid 
     # returns a the index and name of the new spreadsheet
@@ -114,11 +115,18 @@ class Workbook():
         return (self.num_sheets()-1, sheet_name)
 
     def _update_references(self, cells: list):
+        original_set = cells.copy()
         ref_cells = []
         self._graph.dfs_nodes(cells, ref_cells)
         for cell in ref_cells:
-            self.changed_cells.add((cell.sheet_name[0:], cell.location[0:]))
+            old_val = cell.get_value()
             cell.update_value()
+            if (old_val == cell.get_value()):
+                continue
+            if cell in original_set:
+                continue
+            self.changed_cells.append((cell.sheet_name[0:], cell.location[0:]))
+        self._call_notification()
 
     # delete the given spreadsheet
     # Take cells of deleted sheet and updates them to None
@@ -188,11 +196,13 @@ class Workbook():
                 if self._sheets[sheet_name.upper()][loc.upper()] in cells:
                     cells.remove(self._sheets[sheet_name.upper()][loc.upper()])
         # update the cell contents
+        old_val = self._sheets[sheet_name.upper()][loc.upper()].get_value()
         self._sheets[sheet_name.upper()][loc.upper()].set_contents(contents)
+        if (old_val != self._sheets[sheet_name.upper()][loc.upper()].get_value()):
+            self.changed_cells.append((sheet_name, loc))
         self._check_for_loop()
         self._update_references([self._sheets[sheet_name.upper()][loc.upper()]])
         self._update_sheet_extent(sheet_name.upper())
-        self.changed_cells.add((sheet_name, loc))
         return
 
     # return the cell object at a particular location
