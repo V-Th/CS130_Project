@@ -23,7 +23,7 @@ class _CellGraph():
         # setList is used to keep track of the list of stongly connected sets
         self.setList = []
         # st is used to store all the connected ancestors (could be part of SCC)
-        self.st = []
+        self.stack = []
         
     # add edge between node1 and node2
     # node1 depends on the value of node2
@@ -33,8 +33,14 @@ class _CellGraph():
         self.nodes.add(node1)
         self.nodes.add(node2)
 
-    # iterative dfs search for nodes
-    # takes a list of nodes and finds the nodes that rely on them
+    def direct_refs(self, nodes: list):
+        direct_refs = []
+        for node in nodes:
+            direct_refs.extend(self.graph[node])
+        return direct_refs
+
+    # Iterative dfs search for nodes
+    # Takes a list of nodes and finds the nodes that rely on them
     def dfs_nodes(self, remianing: list, visited: list):
         while len(remianing) != 0:
             node = remianing.pop()
@@ -66,13 +72,6 @@ class _CellGraph():
             self.low.pop(node)
         if node in self.stackMember.keys():
             self.stackMember.pop(node)
-            
-    # returns whether node1 connects to node2
-    def connected(self, node1, node2):
-        if node2 in self.graph[node1]:
-            return True
-        else:
-            return False
     
     def __str__(self):
         str = ""
@@ -109,41 +108,34 @@ class _CellGraph():
     # st --> To store all the connected ancestors (could be part of SCC)
 
     def SCCUtil(self, u):
- 
         # Initialize discovery time and low value
         self.disc[u] = self.time
         self.low[u] = self.time
         self.time += 1
         self.stackMember[u] = True
-        self.st.append(u)
+        self.stack.append(u)
  
         # Go through all vertices adjacent to this
         for v in self.graph[u]:
- 
             # If v is not visited yet, then recur for it
             if self.disc[v] == -1:
- 
                 self.SCCUtil(v)
- 
                 # Check if the subtree rooted with v has a connection to
                 # one of the ancestors of u
                 self.low[u] = min(self.low[u], self.low[v])
- 
-            elif self.stackMember[v] == True:
- 
-                '''Update low value of 'u' only if 'v' is still in stack
-                (i.e. it's a back edge, not cross edge).
-                Case 2 (per above discussion on Disc and Low value) '''
+            elif self.stackMember[v]:
+                # Update low value of 'u' only if 'v' is still in stack
+                # This is a loop as 'u' to 'v' is a back edge
                 self.low[u] = min(self.low[u], self.disc[v])
  
-        # head node found, pop the stack and print an SCC
-        w = -1  # To store stack extracted vertices
+        # from the head node, pop all descendents that are in loop
+        # descendents will have low != disc as the low value is the head
         if self.low[u] == self.disc[u]:
+            w = None
             while w != u:
-                w = self.st.pop()
+                w = self.stack.pop()
                 self.currentSet.add(w)
                 self.stackMember[w] = False
- 
             self.setList.append(self.currentSet.copy())
             self.currentSet.clear()
             #return scc
@@ -158,7 +150,7 @@ class _CellGraph():
         
         self.time = 0
         self.setList.clear()
-        self.st.clear()
+        self.stack.clear()
         for n in self.nodes:
             self.disc[n] = -1
             self.low[n] = -1
