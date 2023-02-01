@@ -5,6 +5,8 @@ from .cellerror import *
 import decimal 
 import lark
 from lark.visitors import visit_children_decor
+import json
+from json import JSONEncoder
 
 # Parser for cell contents
 parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
@@ -20,6 +22,9 @@ class _Cell():
 
     def __repr__(self):
         return self.contents
+
+    def toJSON(self):
+        return json.dumps(self.contents)
 
     def _is_error(self):
         try:

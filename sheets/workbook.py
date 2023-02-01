@@ -6,6 +6,7 @@ import re
 import lark
 import string
 import logging
+import json
 
 _RE = re.compile('[A-Za-z]+[1-9][0-9]*')
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
@@ -20,10 +21,35 @@ class Workbook():
         self._graph = _CellGraph()
         self.on_cells_changed = None
         self.changed_cells = []
+
+    def save_workbook(self, f: string):
+        if (f[-5:] != '.json'):
+            raise ValueError
+        sheet_list = []
+        for sheet in self.list_sheets():
+            sheet_dict = {'name':sheet, 'cell_contents':{}}
+            for loc in self._sheets[sheet.upper()]:
+                sheet_dict['cell_contents'][loc] = self._sheets[sheet.upper()][loc].toJSON()
+            sheet_list.append(sheet_dict)
+        out_file = open(f, "w")
+        json.dump({'sheets':sheet_list}, out_file, indent = 4)
+        out_file.close()
     
+    def load_workbook(self, f: string):
+        try:
+            f = open(f)
+            data = json.load(f)
+        except:
+            raise ValueError
+        for sheet in data['sheets']:
+            _, name = self.new_sheet(sheet['name'])
+            for loc in sheet['cell_contents']:
+                self.set_cell_contents(name, loc, sheet['cell_contents'][loc][1:-1])
+        f.close()
+
     def _call_notification(self):
-        if self.on_cells_changed is not None:
-            self.on_cells_changed(self, self.changed_cells)
+        if self.on_cells_changed is not None and len(self.changed_cells) != 0: 
+            self.on_cells_changed(self.changed_cells)
         self.changed_cells.clear()
     
     def notify_cells_changed(self, on_cells_changed):
