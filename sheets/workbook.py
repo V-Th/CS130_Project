@@ -274,31 +274,6 @@ class Workbook():
             return None
         return self._sheets[sheet_name.upper()][location.upper()].get_value()
 
-    def _remove_unnecessary_quote(self, cell):
-        contents = cell.contents
-        curr_idx = 0
-        while True:
-            start = contents.find('\'', curr_idx)
-            if start == -1:
-                break
-            end = contents.find('\'', start+1)
-            quoted = contents[start+1:end]
-            is_not_sheet_ref = contents[end+1] != '!'
-            requires_quote = set(quoted).isdisjoint(_REQUIRE_QUOTES)
-            if (not requires_quote) or is_not_sheet_ref:
-                curr_idx = end+1
-                continue
-            contents = contents[:start]+contents[start+1:end]+contents[end+1:]
-        cell.contents = contents
-    
-    def _replace_sheet_name(self, old_name: str, new_ref: str, cell):
-        while True:
-            ref_idx = cell.contents.upper().find(old_name.upper()+'!')
-            if ref_idx == -1:
-                break
-            sheet_ref = cell.contents[ref_idx:ref_idx+len(old_name)]
-            cell.contents = cell.contents.replace(sheet_ref, new_ref)
-
     def rename_sheet(self, sheet_name: str, new_name: str):
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
@@ -326,8 +301,7 @@ class Workbook():
         if ' ' in new_name:
             new_ref = "\'"+new_name+"\'"
         for cell in direct_refs:
-            self._replace_sheet_name(sheet_name, new_ref, cell)
-            self._remove_unnecessary_quote(cell)
+            cell.rename_sheet(new_ref, sheet_name)
         self._check_missing_sheets(new_name)
     
     def move_sheet(self, sheet_name: str, index: int):

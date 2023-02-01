@@ -8,6 +8,9 @@ from lark.visitors import visit_children_decor
 import json
 from json import JSONEncoder
 
+# Characters for sheetname that require quotes
+_REQUIRE_QUOTES = set(" .?!,:;!@#$%^&*()-")
+
 # Parser for cell contents
 parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
 
@@ -83,6 +86,11 @@ class _Cell():
     # return value calculated from cell contents
     def get_value(self):
         return self.value
+
+    def rename_sheet(self, new_name, old_name):
+        evaluator = FormulaManipulation(new_name, old_name)
+        parsed = parser.parse(self.contents)
+        self.contents = '= '+evaluator.transform(parsed)
 
 def check_arithmetic_input(value):
     if isinstance(value, (decimal.Decimal, CellError)):
@@ -201,3 +209,42 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             self.wb.add_dependency(self.this_cell, tree.children[1], sheet_name)
             other_cell = self.wb.get_cell_value(sheet_name, tree.children[1])
         return other_cell
+
+class FormulaManipulation(lark.Transformer):
+    def __init__(self, new_name, old_name):
+        self.new_name = new_name
+        self.old_name = old_name
+
+    def add_expr(self, values):
+        return values[0]+' '+values[1]+' '+values[2]
+
+    def mul_expr(self, values):
+        return values[0]+' '+values[1]+' '+values[2]
+
+    def concat_expr(self, values):
+        return values[0]+' '+values[1]+' '+values[2]
+
+    def unary_op(self, values):
+        return values[0] + values[1]
+
+    def error(self, values):
+        return values[0]
+
+    def number(self, values):
+        return values[0]
+    
+    def string(self, values):
+        return values[0]
+    
+    def parens(self, values):
+        return '('+values[0]+')'
+
+    def cell(self, values):
+        if len(values) == 1:
+            return values[0]
+        sheet_name = values[0].strip('\'')
+        if sheet_name.upper() == self.old_name.upper():
+            sheet_name = self.new_name
+        if not set(sheet_name).isdisjoint(_REQUIRE_QUOTES):
+            return '\''+sheet_name+'\''+'!'+values[1]
+        return sheet_name+'!'+values[1]
