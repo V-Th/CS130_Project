@@ -35,7 +35,25 @@ class TestMethods(unittest.TestCase):
         self.assertIsInstance(self.wb.get_cell_value(self.s1, 'a1'), CellError)
         self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), CellErrorType.BAD_REFERENCE)
         self.wb.new_sheet("Sheet2")
-        self.assertEqual(self.wb.get_cell_value(self.s1, 'a1'), decimal.Decimal())        
+        self.assertEqual(self.wb.get_cell_value(self.s1, 'a1'), decimal.Decimal())
+
+    def test_rename(self):
+        _, _ = self.wb.new_sheet("Test")
+        self.wb.set_cell_contents(self.s1, 'a1', '=Test!a1')
+        self.wb.rename_sheet("test", 'Complete')
+        self.assertEqual(self.wb.get_cell_contents(self.s1, 'a1'), '=Complete!a1')
+
+    def test_sheet_quoting(self):
+        _, _ = self.wb.new_sheet("Test")
+        self.wb.set_cell_contents(self.s1, 'a1', '=\'Test\'!a1')
+        self.assertEqual(self.wb.get_cell_value(self.s1, 'a1'), decimal.Decimal())
+
+    def test_unnecessary_quotes(self):
+        _, _ = self.wb.new_sheet("Test")
+        _, _ = self.wb.new_sheet("Rename")
+        self.wb.set_cell_contents(self.s1, 'a1', '=\'Test\'!a1 + \'Test\'!a2 + Rename!a1')
+        self.wb.rename_sheet("rename", 'Complete')
+        self.assertEqual(self.wb.get_cell_contents(self.s1, 'a1'), '=Test!a1 + Test!a2 + Complete!a1')
 
 if __name__ == '__main__':
     unittest.main()
