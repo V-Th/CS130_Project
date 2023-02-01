@@ -53,7 +53,12 @@ D2.  [3pts] Sheet-level operations like copying a sheet, deleting a sheet,
 D3.  [4pts] When renaming a sheet, cells with formulas that explicitly
      reference the renamed sheet must be updated with the new sheet name.
      Give an overview of how your implementation updates these formulas.
-
+    When a sheet is renamed, a list of all the cells in the sheet are
+    collected. For each cell, the cells directly referencing them are
+    called to rename the sheet as they are the only cells to have
+    an explicit reference to the renamed sheet. A lark.Transformer
+    is used on their contents to rename the sheet if it is in the formula
+    and remove unnecessary quotes.
 
 Spreadsheet Engine Code Review (17 pts)
 ---------------------------------------
