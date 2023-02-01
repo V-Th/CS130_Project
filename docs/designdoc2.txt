@@ -34,15 +34,21 @@ D1.  [3pts] Briefly describe how your workbook-loading code operates.  Does
      it do anything sophisticated to optimize the performance of loading a
      workbook, such as deferring cell-value update calculations, or analyzing
      the graph of cell dependencies?
-     The load_workbook method loops through the given file data and adds each 
-     sheet and its cell contents to the workbook.
-     We have not yet done anything sophisticated to optimize its performance.
+    The load_workbook method loops through the given file data and adds each 
+    sheet and its cell contents to the workbook.
+    We have not yet done anything sophisticated to optimize its performance.
 
 D2.  [3pts] Sheet-level operations like copying a sheet, deleting a sheet,
      renaming a sheet, or even creating a new sheet, can cause cell values
      to be updated.  How does your workbook identify such cells and ensure
      that they are updated properly?
-
+    For deleting a sheet and renaming a sheet, the workbook takes all the
+    cells for the affected sheet and looks at their dependencies to
+    determine whether their dependencies needs to be updated such as 
+    formula changes or updating values.
+    For copying, creating, and renaming, the workbook stores a dictionary
+    that keeps track of cells referencing a nonexistent sheet. If the new
+    sheet matches the name, then the workbook updates their values.
 
 D3.  [4pts] When renaming a sheet, cells with formulas that explicitly
      reference the renamed sheet must be updated with the new sheet name.
@@ -96,16 +102,36 @@ to identify where your program is spending the bulk of its time.
 A1.  [4pts] Briefly enumerate the performance tests you created to exercise
      your implementation, along with the teammates that collaborated to
      implement each of them.
-
+    Anushka and Vinny immplemented all of the performance tests together.
+        Chain reference
+        Several short references
+        Long looped reference
+        Several short loop references
+        Make one short loop and break the loop
+        Make several short loops and breaks all of them
 
 A2.  [2pts] What profiler did you choose to run your performance tests with?
      Why?  Give an example of how to invoke one of your tests with the profiler.
+    We chose to use cProfiler as it was the first one recommended and had a nice
+    documentation page.
+    From sheets, we run the command
+        "python .\tests\reference_performance.py"
+    which runs a series of function with profilers to records the stats and prints
+    them.
 
 
 A3.  [6pts] What are ~3 of the most significant hot-spots you identified in your
      performance testing?  Did you expect these hot-spots, or were they
      surprising to you?
-
+    Our hotspots were
+        SCCUtil
+        _check_for_loop
+        _loc_to_tuple
+    SCCUtil was expected as it is our recursive function for loop detection.
+    _check_for_loop was also not surprising since it checks all cells that
+    may be involved in a loop.
+    _loc_to_tuple is surprising as it suppose to only convert location to
+    some numerical values.
 
 A4.  [4pts] Reflect on the experience of pair-programming as you constructed
      these tests.  What went well with it?  What would you like to try to do
