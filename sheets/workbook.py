@@ -248,18 +248,21 @@ class Workbook():
             return None
         return self._sheets[sheet_name.upper()][location.upper()].get_value()
 
-    def _remove_unnecessary_quote(self, contents: str):
+    def _remove_unnecessary_quote(self, cell):
+        contents = cell.contents
         curr_idx = 0
         while True:
             start = contents.find('\'', curr_idx)
             if start == -1:
                 break
-            end = contents.find('\'', start)
-            quoted = contents[start:end+1]
-            if not set(quoted).intersection(_REQUIRE_QUOTES):
+            end = contents.find('\'', start+1)
+            quoted = contents[start+1:end]
+            if not set(quoted).isdisjoint(_REQUIRE_QUOTES):
                 curr_idx = end+1
                 continue
             contents = contents[:start]+contents[start+1:end]+contents[end+1:]
+        cell.contents = contents
+            
     
     def _replace_sheet_name(self, old_name: str, new_ref: str, cell):
         while True:
@@ -297,7 +300,7 @@ class Workbook():
             new_ref = "\'"+new_name+"\'"
         for cell in direct_refs:
             self._replace_sheet_name(sheet_name, new_ref, cell)
-            self._remove_unnecessary_quote(cell.contents)
+            self._remove_unnecessary_quote(cell)
         self._check_missing_sheets(new_name)
     
     def move_sheet(self, sheet_name: str, index: int):
