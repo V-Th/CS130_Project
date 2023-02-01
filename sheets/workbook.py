@@ -10,6 +10,7 @@ import json
 
 _RE = re.compile('[A-Za-z]+[1-9][0-9]*')
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
+_REQUIRE_QUOTES = set(" .?!,:;!@#$%^&*()-")
     
 class Workbook():
     def __init__(self):
@@ -209,6 +210,7 @@ class Workbook():
             raise KeyError
         if not self._is_valid_location(loc):
             raise ValueError
+
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, loc):
             self._sheets[sheet_name.upper()][loc.upper()] = _Cell(self.workbook, sheet_name, loc)
@@ -218,6 +220,7 @@ class Workbook():
                 cells = self._missing_sheets[f_sheet]
                 if self._sheets[sheet_name.upper()][loc.upper()] in cells:
                     cells.remove(self._sheets[sheet_name.upper()][loc.upper()])
+
         # update the cell contents
         old_val = self._sheets[sheet_name.upper()][loc.upper()].get_value()
         self._sheets[sheet_name.upper()][loc.upper()].set_contents(contents)
@@ -242,6 +245,7 @@ class Workbook():
             self._missing_sheets[sheet_name.upper()].append(src_cell)
             assert self._sheet_name_exists(sheet_name)
         assert self._is_valid_location(location.upper())
+
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, location):
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
@@ -270,11 +274,37 @@ class Workbook():
             return None
         return self._sheets[sheet_name.upper()][location.upper()].get_value()
 
+    def _remove_unnecessary_quote(self, cell):
+        contents = cell.contents
+        curr_idx = 0
+        while True:
+            start = contents.find('\'', curr_idx)
+            if start == -1:
+                break
+            end = contents.find('\'', start+1)
+            quoted = contents[start+1:end]
+            is_not_sheet_ref = contents[end+1] != '!'
+            requires_quote = set(quoted).isdisjoint(_REQUIRE_QUOTES)
+            if (not requires_quote) or is_not_sheet_ref:
+                curr_idx = end+1
+                continue
+            contents = contents[:start]+contents[start+1:end]+contents[end+1:]
+        cell.contents = contents
+    
+    def _replace_sheet_name(self, old_name: str, new_ref: str, cell):
+        while True:
+            ref_idx = cell.contents.upper().find(old_name.upper()+'!')
+            if ref_idx == -1:
+                break
+            sheet_ref = cell.contents[ref_idx:ref_idx+len(old_name)]
+            cell.contents = cell.contents.replace(sheet_ref, new_ref)
+
     def rename_sheet(self, sheet_name: str, new_name: str):
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
         if not self._is_valid_sheet(new_name):
             raise ValueError
+
         # Replace sheet name in all dictionaries in the workbook
         self._display_sheets.pop(sheet_name.upper())
         self._display_sheets[new_name.upper()] = new_name
@@ -282,11 +312,13 @@ class Workbook():
         self._extents[new_name.upper()] = extent
         loc_cells = self._sheets.pop(sheet_name.upper())
         self._sheets[new_name.upper()] = {}
+
         # Change the sheet name value within the cells of the sheet
         while loc_cells:
             loc, cell = loc_cells.popitem()
             cell.sheet_name = new_name
             self._sheets[new_name.upper()][loc.upper()] = cell
+
         # Change the sheet name references in formulas
         cells = list(self._sheets[new_name.upper()].values())
         direct_refs = self._graph.direct_refs(cells)
@@ -294,12 +326,8 @@ class Workbook():
         if ' ' in new_name:
             new_ref = "\'"+new_name+"\'"
         for cell in direct_refs:
-            while (True):
-                ref_idx = cell.contents.upper().find(sheet_name.upper()+'!')
-                if ref_idx == -1:
-                    break
-                sheet_ref = cell.contents[ref_idx:ref_idx+len(sheet_name)]
-                cell.contents = cell.contents.replace(sheet_ref, new_ref)
+            self._replace_sheet_name(sheet_name, new_ref, cell)
+            self._remove_unnecessary_quote(cell)
         self._check_missing_sheets(new_name)
     
     def move_sheet(self, sheet_name: str, index: int):

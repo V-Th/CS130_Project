@@ -75,7 +75,6 @@ class _Cell():
             self.contents = None
         else:
             self.contents = contents.strip()
-        self.update_value()
 
     # return literal contents of cell
     def get_contents(self):
@@ -191,14 +190,14 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     def parens(self, tree):
         return self.visit(tree.children[0])
 
-    def sheetname(self, tree):
-        return tree.children[0]
-
     def cell(self, tree):
         if (len(tree.children) == 1):
             self.wb.add_dependency(self.this_cell, tree.children[0], self.sheet)
             other_cell = self.wb.get_cell_value(self.sheet, tree.children[0])
         else:
-            self.wb.add_dependency(self.this_cell, tree.children[1], tree.children[0])
-            other_cell = self.wb.get_cell_value(tree.children[0], tree.children[1])
+            sheet_name = tree.children[0]
+            if sheet_name[0] == '\'':
+                sheet_name = sheet_name[1:-1]
+            self.wb.add_dependency(self.this_cell, tree.children[1], sheet_name)
+            other_cell = self.wb.get_cell_value(sheet_name, tree.children[1])
         return other_cell
