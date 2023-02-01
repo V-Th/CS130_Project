@@ -257,12 +257,13 @@ class Workbook():
                 break
             end = contents.find('\'', start+1)
             quoted = contents[start+1:end]
-            if not set(quoted).isdisjoint(_REQUIRE_QUOTES):
+            is_not_sheet_ref = contents[end+1] != '!'
+            requires_quote = set(quoted).isdisjoint(_REQUIRE_QUOTES)
+            if (not requires_quote) or is_not_sheet_ref:
                 curr_idx = end+1
                 continue
             contents = contents[:start]+contents[start+1:end]+contents[end+1:]
         cell.contents = contents
-            
     
     def _replace_sheet_name(self, old_name: str, new_ref: str, cell):
         while True:
