@@ -34,7 +34,9 @@ D1.  [3pts] Briefly describe how your workbook-loading code operates.  Does
      it do anything sophisticated to optimize the performance of loading a
      workbook, such as deferring cell-value update calculations, or analyzing
      the graph of cell dependencies?
-
+     The load_workbook method loops through the given file data and adds each 
+     sheet and its cell contents to the workbook.
+     We have not yet done anything sophisticated to optimize its performance.
 
 D2.  [3pts] Sheet-level operations like copying a sheet, deleting a sheet,
      renaming a sheet, or even creating a new sheet, can cause cell values
