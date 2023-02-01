@@ -50,7 +50,7 @@ class Workbook():
 
     def _call_notification(self):
         if self.on_cells_changed is not None and len(self.changed_cells) != 0: 
-            self.on_cells_changed(self.changed_cells)
+            self.on_cells_changed(self, self.changed_cells)
         self.changed_cells.clear()
     
     def notify_cells_changed(self, on_cells_changed):
@@ -224,6 +224,7 @@ class Workbook():
         # update the cell contents
         old_val = self._sheets[sheet_name.upper()][loc.upper()].get_value()
         self._sheets[sheet_name.upper()][loc.upper()].set_contents(contents)
+        self._sheets[sheet_name.upper()][loc.upper()].update_value()
         if (old_val != self._sheets[sheet_name.upper()][loc.upper()].get_value()):
             self.changed_cells.append((sheet_name, loc))
     
