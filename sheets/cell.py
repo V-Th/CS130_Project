@@ -31,8 +31,8 @@ class _Cell():
 
     def _is_error(self):
         try:
-            err_type = CellErrorType(self.contents)
-            detail = f"Written error: {self.contents}"
+            err_type = CellErrorType(self.contents.upper())
+            detail = f"Written error: {self.contents.upper()}"
             self.value = CellError(err_type, detail)
             return True
         except:
@@ -90,7 +90,7 @@ class _Cell():
     def rename_sheet(self, new_name, old_name):
         evaluator = FormulaManipulation(new_name, old_name)
         parsed = parser.parse(self.contents)
-        self.contents = '= '+evaluator.transform(parsed)
+        self.contents = '= '+ evaluator.transform(parsed)
 
 def check_arithmetic_input(value):
     if isinstance(value, (decimal.Decimal, CellError)):
@@ -222,7 +222,7 @@ class FormulaManipulation(lark.Transformer):
         return values[0]+' '+values[1]+' '+values[2]
 
     def concat_expr(self, values):
-        return values[0]+' '+values[1]+' '+values[2]
+        return values[0]+' '+'&'+' '+values[1]
 
     def unary_op(self, values):
         return values[0] + values[1]
