@@ -312,8 +312,8 @@ class Workbook():
             raise IndexError
         sheets = list(self._display_sheets.items())
         entry = (sheet_name.upper(), self._display_sheets[sheet_name.upper()])
-        old_idx = sheets.index(entry)
-        sheets[old_idx], sheets[index] = sheets[index], sheets[old_idx]
+        sheets.remove(entry)
+        sheets.insert(index, entry)
         self._display_sheets = dict(sheets)
 
     def copy_sheet(self, sheet_name: str):
@@ -325,8 +325,9 @@ class Workbook():
         while (self._sheet_name_exists(copy_name + "_" + str(n))):
             n += 1
         copy_name = copy_name + '_' + str(n)
-        self.new_sheet(copy_name)
-        for loc, cell in sheet:
+        idx, copy_name = self.new_sheet(copy_name)
+        for loc, cell in sheet.items():
             self._set_cell_contents(copy_name, loc, cell.get_contents())
         self._call_notification()
         self._check_missing_sheets(copy_name)
+        return idx, copy_name
