@@ -22,6 +22,7 @@ class _Cell():
         self.workbook = workbook
         self.sheet_name = sheet_name
         self.location = location
+        self.tree = None
 
     def __repr__(self):
         return self.contents
@@ -47,8 +48,7 @@ class _Cell():
     def _eval_formula(self):
         evaluator = FormulaEvaluator(self.workbook, self.sheet_name, self)
         try:
-            tree = parser.parse(self.contents)
-            self.value =  evaluator.visit(tree)
+            self.value =  evaluator.visit(self.tree)
             if self.value is None:
                 self.value = decimal.Decimal()
         except AssertionError:
@@ -57,7 +57,6 @@ class _Cell():
         except:
             detail = 'Cannot be parsed; please check input'
             self.value = CellError(CellErrorType.PARSE_ERROR, detail)
-        return
 
     def update_value(self):
         if self.contents is None:
@@ -78,6 +77,8 @@ class _Cell():
             self.contents = None
         else:
             self.contents = contents.strip()
+            if self.contents[0] == '=':
+                self.tree = parser.parse(self.contents)
 
     # return literal contents of cell
     def get_contents(self):
