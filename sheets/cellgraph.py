@@ -42,19 +42,24 @@ class _CellGraph():
     # Iterative dfs search for nodes
     # Takes a list of nodes and finds the nodes that rely on them
     def dfs_nodes(self, remianing: list, visited: list):
+        sccs = set()
+        for scc in self.setList:
+            if len(scc) == 1:
+                continue
+            sccs.update(scc)
         while len(remianing) != 0:
             node = remianing.pop()
-            node_scc = set()
-            for scc in self.setList:
-                if node in scc:
-                    node_scc = scc
+            # node_scc = set()
+            # for scc in self.setList:
+            #     if node in scc:
+            #         node_scc = scc
             # If node was visited, it has an earlier dependency
             # It would have been updated twice
             if node in visited:
                 visited.remove(node)
             visited.append(node)
             for child in self.graph[node]:
-                if child in node_scc:
+                if child in sccs or child == node:
                     continue
                 if child not in remianing:
                     remianing.append(child)
