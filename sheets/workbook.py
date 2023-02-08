@@ -251,7 +251,6 @@ class Workbook():
             self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
         dest_cell = self._sheets[sheet_name.upper()][location.upper()]
         self._graph.add_edge(src_cell, dest_cell)
-        self._check_for_loop()
     
     # return the contents of the cell at the given location
     def get_cell_contents(self, sheet_name: str, location: str):
