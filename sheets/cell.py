@@ -31,7 +31,7 @@ class _Cell():
 
     def _is_error(self):
         try:
-            err_type = CellErrorType(self.contents.upper())
+            err_type = str_to_error(self.contents.upper())
             detail = f"Written error: {self.contents.upper()}"
             self.value = CellError(err_type, detail)
             return True
@@ -184,7 +184,7 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             assert False, 'Unexpected operator: ' + values[0]
 
     def error(self, tree):
-        return CellError(CellErrorType(tree.children[0]), tree.children[0])
+        return CellError(str_to_error(tree.children[0].upper()), tree.children[0].upper())
 
     def number(self, tree):
         num = tree.children[0]

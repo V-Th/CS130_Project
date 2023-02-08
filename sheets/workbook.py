@@ -10,7 +10,6 @@ import json
 
 _RE = re.compile('[A-Za-z]+[1-9][0-9]*')
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
-_REQUIRE_QUOTES = set(" .?!,:;!@#$%^&*()-")
     
 class Workbook():
     def __init__(self):
@@ -195,12 +194,12 @@ class Workbook():
             if len(set) == 1:
                 for node in set:
                     if node in self._graph.graph[node]:
-                        node.value = CellError(CellErrorType("#CIRCREF!"), "Circular reference detected")
+                        node.value = CellError(CellErrorType.CIRCULAR_REFERENCE, "Circular reference detected")
                 continue
             for i in set:
                 cell_sheet = i.sheet_name.upper()
                 cell_loc = i.location.upper()
-                cell_err = CellError(CellErrorType("#CIRCREF!"), "Circular reference detected")
+                cell_err = CellError(CellErrorType.CIRCULAR_REFERENCE, "Circular reference detected")
                 self._sheets[cell_sheet][cell_loc].value = cell_err
         return
 

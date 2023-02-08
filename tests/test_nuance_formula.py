@@ -1,6 +1,7 @@
 import context
 import unittest
 import decimal
+from sheets import cellerrortype
 from sheets import *
 
 class TestMethods(unittest.TestCase):
@@ -40,12 +41,12 @@ class TestMethods(unittest.TestCase):
         self.assertIsInstance(a4_v, CellError)
         self.assertIsInstance(a5_v, CellError)
         self.assertIsInstance(a6_v, CellError)
-        self.assertEqual(a1_v.get_type(), CellErrorType('#ERROR!'))
-        self.assertEqual(a2_v.get_type(), CellErrorType('#CIRCREF!'))
-        self.assertEqual(a3_v.get_type(), CellErrorType('#REF!'))
-        self.assertEqual(a4_v.get_type(), CellErrorType('#NAME?'))
-        self.assertEqual(a5_v.get_type(), CellErrorType('#VALUE!'))
-        self.assertEqual(a6_v.get_type(), CellErrorType('#DIV/0!'))
+        self.assertEqual(a1_v.get_type(), CellErrorType.PARSE_ERROR)
+        self.assertEqual(a2_v.get_type(), CellErrorType.CIRCULAR_REFERENCE)
+        self.assertEqual(a3_v.get_type(), CellErrorType.BAD_REFERENCE)
+        self.assertEqual(a4_v.get_type(), CellErrorType.BAD_NAME)
+        self.assertEqual(a5_v.get_type(), CellErrorType.TYPE_ERROR)
+        self.assertEqual(a6_v.get_type(), CellErrorType.DIVIDE_BY_ZERO)
 
     def test_add_cell_number(self):
         '''
@@ -183,19 +184,19 @@ class TestMethods(unittest.TestCase):
         Test whether errors are properly passed
         '''
         for errortype in CellErrorType:
-            self.wb.set_cell_contents(self.s1, 'a1', '='+errortype.value)
+            self.wb.set_cell_contents(self.s1, 'a1', '='+cellerrortype.error_to_str(errortype))
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
-            self.wb.set_cell_contents(self.s1, 'a1', '=-'+errortype.value)
+            self.wb.set_cell_contents(self.s1, 'a1', '=-'+cellerrortype.error_to_str(errortype))
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
-            self.wb.set_cell_contents(self.s1, 'a1', '=4+'+errortype.value)
+            self.wb.set_cell_contents(self.s1, 'a1', '=4+'+cellerrortype.error_to_str(errortype))
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
-            self.wb.set_cell_contents(self.s1, 'a1', '=4-'+errortype.value)
+            self.wb.set_cell_contents(self.s1, 'a1', '=4-'+cellerrortype.error_to_str(errortype))
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
-            self.wb.set_cell_contents(self.s1, 'a1', '=4*'+errortype.value)
+            self.wb.set_cell_contents(self.s1, 'a1', '=4*'+cellerrortype.error_to_str(errortype))
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
-            self.wb.set_cell_contents(self.s1, 'a1', '=4/'+errortype.value)
+            self.wb.set_cell_contents(self.s1, 'a1', '=4/'+cellerrortype.error_to_str(errortype))
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
-            self.wb.set_cell_contents(self.s1, 'a1', '=('+errortype.value+')')
+            self.wb.set_cell_contents(self.s1, 'a1', '=('+cellerrortype.error_to_str(errortype)+')')
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
 
 if __name__ == '__main__':
