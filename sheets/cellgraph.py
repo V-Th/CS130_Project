@@ -107,6 +107,65 @@ class _CellGraph():
             print(set)
             print()
         print()
+
+    def post_recursion(self, parent_child):
+        u = parent_child[1]
+        if self.low[u] == self.disc[u]:
+            w = None
+            while w != u:
+                w = self.stack.pop()
+                self.currentSet.add(w)
+                self.stackMember[w] = False
+            self.setList.append(self.currentSet.copy())
+            self.currentSet.clear()
+        if parent_child[0] is not None:
+            self.low[parent_child[0]] = min(self.low[parent_child[0]], self.low[parent_child[1]])
+        return []
+
+    def lazy_iter(self, parent_child):
+        u = parent_child[1]
+        self.disc[u] = self.time
+        self.low[u] = self.time
+        self.time += 1
+        self.stackMember[u] = True
+        self.stack.append(u)
+ 
+        to_do_list = []
+        post_recur = lambda cell: self.post_recursion(cell)
+        to_do_list.append((post_recur, parent_child))
+        # Go through all vertices adjacent to this
+        for v in self.graph[u]:
+            # If v is not visited yet, then recur for it
+            if self.disc[v] == -1:
+                # Check if the subtree rooted with v has a connection to
+                # one of the ancestors of u
+                
+                recur = lambda child_grandchild : self.lazy_iter(child_grandchild)
+                to_do_list.append((recur, (u, v)))
+            elif self.stackMember[v]:
+                # Update low value of 'u' only if 'v' is still in stack
+                # This is a loop as 'u' to 'v' is a back edge
+                self.low[u] = min(self.low[u], self.disc[v])
+ 
+        return to_do_list
+
+    def lazy_SCC(self):
+        self.time = 0
+        self.setList.clear()
+        self.stack.clear()
+        for n in self.nodes:
+            self.disc[n] = -1
+            self.low[n] = -1
+            self.stackMember[n] = False
+        
+        to_do = []
+        for n in self.nodes:
+            if self.disc[n] == -1:
+                to_do.extend(self.lazy_iter((None, n)))
+            while to_do:
+                recur, args = to_do.pop()
+                to_do.extend(recur(args))
+        self.setList.reverse()
         
     # recursive function that find finds and prints strongly connected components using DFS traversal
     # u --> The vertex to be visited next
