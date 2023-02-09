@@ -134,7 +134,7 @@ class Workbook():
             raise ValueError
         self._sheets[sheet_name.upper()] = {}
         self._display_sheets[sheet_name.upper()] = sheet_name
-        self._update_sheet_extent(sheet_name.upper())
+        self._update_sheet_extent(sheet_name.upper(), None)
         self._check_missing_sheets(sheet_name)
         return (self.num_sheets()-1, sheet_name)
 
@@ -172,14 +172,25 @@ class Workbook():
             raise KeyError
     
     # when a spreadsheet is added or deleted, update the extent of that sheet 
-    def _update_sheet_extent(self, sheet_name: str) -> None:
+    def _update_sheet_extent(self, sheet_name: str, cell: _Cell) -> None:
         if not self._sheet_name_exists(sheet_name):
             return
         max_a, max_b = 0, 0
-        for loc in self._sheets[sheet_name.upper()].keys():
-            if self.get_cell_contents(sheet_name, loc) is None:
-                continue
-            a, b = self._loc_to_tuple(loc)
+        if cell is None:
+            self._extents[sheet_name.upper()] = (max_a, max_b)
+            return
+        if cell.get_contents() is None:
+            for loc in self._sheets[sheet_name.upper()].keys():
+                content = self._sheets[sheet_name.upper()][loc.upper()].get_contents()
+                if content is None:
+                    continue
+                a, b = self._loc_to_tuple(loc)
+                if a > max_a:
+                    max_a = a
+                if b > max_b:
+                    max_b = b
+        elif cell.get_contents():
+            a, b = self._loc_to_tuple(cell.location)
             if a > max_a:
                 max_a = a
             if b > max_b:
@@ -234,8 +245,7 @@ class Workbook():
         self._check_for_loop()
         self._update_references([self._sheets[sheet_name.upper()][loc.upper()]])
         self._call_notification()
-        self._update_sheet_extent(sheet_name.upper())
-        return
+        self._update_sheet_extent(sheet_name.upper(), self._sheets[sheet_name.upper()][loc.upper()])
 
     # return the cell object at a particular location
     def add_dependency(self, src_cell: _Cell, location: str, sheet_name: str) -> None:
