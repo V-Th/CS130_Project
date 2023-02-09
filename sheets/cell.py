@@ -202,13 +202,15 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     def cell(self, tree):
         if (len(tree.children) == 1):
             self.wb.add_dependency(self.this_cell, tree.children[0], self.sheet)
-            other_cell = self.wb.get_cell_value(self.sheet, tree.children[0])
+            other_cell = self.wb._sheets[self.sheet.upper()][tree.children[0].upper()].get_value()
+            # other_cell = self.wb.get_cell_value(self.sheet, tree.children[0])
         else:
             sheet_name = tree.children[0]
             if sheet_name[0] == '\'':
                 sheet_name = sheet_name[1:-1]
             self.wb.add_dependency(self.this_cell, tree.children[1], sheet_name)
-            other_cell = self.wb.get_cell_value(sheet_name, tree.children[1])
+            other_cell = self.wb._sheets[sheet_name.upper()][tree.children[1].upper()].get_value()
+            # other_cell = self.wb.get_cell_value(sheet_name, tree.children[1])
         return other_cell
 
 class FormulaManipulation(lark.Transformer):
