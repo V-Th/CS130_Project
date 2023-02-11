@@ -3,7 +3,6 @@ from .cell import _Cell
 from .cellerror import *
 from .cellgraph import _CellGraph
 import re
-import lark
 import string
 import logging
 import json
@@ -19,7 +18,7 @@ class Workbook():
         self._display_sheets = {}
         self._missing_sheets = {}
         self._graph = _CellGraph()
-        self.on_cells_changed = None
+        self.on_cells_changed = []
         self.changed_cells = []
 
     def save_workbook(self, f: string):
@@ -48,12 +47,17 @@ class Workbook():
         f.close()
 
     def _call_notification(self):
-        if self.on_cells_changed is not None and len(self.changed_cells) != 0: 
-            self.on_cells_changed(self, self.changed_cells)
+        for call_func in self.on_cells_changed:
+            try:
+                call_func(self, self.changed_cells)
+            # A general exception is used to catch any exception that a
+            # notification may throw
+            except Exception:
+                continue
         self.changed_cells.clear()
     
     def notify_cells_changed(self, on_cells_changed):
-        self.on_cells_changed = on_cells_changed
+        self.on_cells_changed.append(on_cells_changed)
 
     def num_sheets(self) -> int:
         return len(self._sheets)
