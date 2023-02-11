@@ -156,9 +156,10 @@ class Workbook():
     # This triggers the update_value for cells relying on them
     def del_sheet(self, sheet_name: str) -> None:
         if self._sheet_name_exists(sheet_name):
-            dead_sheet = self._sheets.pop(sheet_name.upper())
-            self._display_sheets.pop(sheet_name.upper())
-            self._extents.pop(sheet_name.upper())
+            sheet_upper = sheet_name.upper()
+            dead_sheet = self._sheets.pop(sheet_upper)
+            self._display_sheets.pop(sheet_upper)
+            self._extents.pop(sheet_upper)
             self._update_references(list(dead_sheet.values()))
             self._call_notification()
         else:
@@ -173,15 +174,16 @@ class Workbook():
     
     # when a spreadsheet is added or deleted, update the extent of that sheet 
     def _update_sheet_extent(self, sheet_name: str, cell: _Cell) -> None:
+        sheet_upper = sheet_name.upper()
         if not self._sheet_name_exists(sheet_name):
             return
         max_a, max_b = 0, 0
         if cell is None:
-            self._extents[sheet_name.upper()] = (max_a, max_b)
+            self._extents[sheet_upper] = (max_a, max_b)
             return
         if cell.get_contents() is None:
-            for loc in self._sheets[sheet_name.upper()].keys():
-                content = self._sheets[sheet_name.upper()][loc.upper()].get_contents()
+            for loc in self._sheets[sheet_upper].keys():
+                content = self._sheets[sheet_upper][loc.upper()].get_contents()
                 if content is None:
                     continue
                 a, b = self._loc_to_tuple(loc)
@@ -195,24 +197,27 @@ class Workbook():
                 max_a = a
             if b > max_b:
                 max_b = b
-        self._extents[sheet_name.upper()] = (max_a, max_b)
+        self._extents[sheet_upper] = (max_a, max_b)
 
     # Update the cellgraph and check for loops
     def _check_for_loop(self):
-        self._graph.SCC()
+        self._graph.lazy_SCC()
         # for those in SCC sets with other, set CIRCREF error
-        for set in self._graph.setList:
-            if len(set) == 1:
-                for node in set:
-                    if node in self._graph.graph[node]:
-                        node.value = CellError(CellErrorType.CIRCULAR_REFERENCE, "Circular reference detected")
-                continue
-            for i in set:
-                cell_sheet = i.sheet_name.upper()
-                cell_loc = i.location.upper()
-                cell_err = CellError(CellErrorType.CIRCULAR_REFERENCE, "Circular reference detected")
-                self._sheets[cell_sheet][cell_loc].value = cell_err
-        return
+        for cell in self._graph.nodes:
+            if cell in self._graph.sccs or cell in self._graph.graph[cell]:
+                err_str = "Circular reference detected"
+                cell.value = CellError(CellErrorType(2), err_str)
+        # for set in self._graph.setList:
+        #     if len(set) == 1:
+        #         for node in set:
+        #             if node in self._graph.graph[node]:
+        #                 node.value = CellError(CellErrorType.CIRCULAR_REFERENCE, "Circular reference detected")
+        #         continue
+        #     for i in set:
+        #         cell_sheet = i.sheet_name.upper()
+        #         cell_loc = i.location.upper()
+        #         cell_err = CellError(CellErrorType.CIRCULAR_REFERENCE, "Circular reference detected")
+        #         self._sheets[cell_sheet][cell_loc].value = cell_err
 
     # Internal call to add cells to sheet
     def _set_cell_contents(self, sheet_name: str, loc: str, contents:str):

@@ -16,12 +16,11 @@ class _CellGraph():
         self.low = {}    
         # time is used to keep track of discovery time
         self.time = 0
-        # stackMember is an array for faster check whether a node is in stack
-        self.stackMember = {}
-        # currentSet is used to keep track of current strongly connected set    
-        self.currentSet = set()
-        # setList is used to keep track of the list of stongly connected sets
+        # in_stack is an array for faster check whether a node is in stack
+        self.in_stack = {}
+        # setList and sccs is used to keep track of the list of stongly connected sets
         self.setList = []
+        self.sccs = set()
         # st is used to store all the connected ancestors (could be part of SCC)
         self.stack = []
         
@@ -42,11 +41,11 @@ class _CellGraph():
     # Iterative dfs search for nodes
     # Takes a list of nodes and finds the nodes that rely on them
     def dfs_nodes(self, remianing: list, visited: list):
-        sccs = set()
-        for scc in self.setList:
-            if len(scc) == 1:
-                continue
-            sccs.update(scc)
+        # sccs = set()
+        # for scc in self.setList:
+        #     if len(scc) == 1:
+        #         continue
+        #     sccs.update(scc)
         while len(remianing) != 0:
             node = remianing.pop()
             # node_scc = set()
@@ -59,7 +58,7 @@ class _CellGraph():
                 visited.remove(node)
             visited.append(node)
             for child in self.graph[node]:
-                if child in sccs or child == node:
+                if child in self.sccs or child == node:
                     continue
                 if child not in remianing:
                     remianing.append(child)
@@ -75,8 +74,8 @@ class _CellGraph():
             self.disc.pop(node)
         if node in self.low.keys():
             self.low.pop(node)
-        if node in self.stackMember.keys():
-            self.stackMember.pop(node)
+        if node in self.in_stack.keys():
+            self.in_stack.pop(node)
     
     def __str__(self):
         str = ""
@@ -109,17 +108,20 @@ class _CellGraph():
         print()
 
     def post_recursion(self, parent_child):
-        u = parent_child[1]
-        if self.low[u] == self.disc[u]:
-            w = None
-            while w != u:
-                w = self.stack.pop()
-                self.currentSet.add(w)
-                self.stackMember[w] = False
-            self.setList.append(self.currentSet.copy())
-            self.currentSet.clear()
-        if parent_child[0] is not None:
-            self.low[parent_child[0]] = min(self.low[parent_child[0]], self.low[parent_child[1]])
+        parent = parent_child[0]
+        child = parent_child[1]
+        scc = set()
+        if self.low[child] == self.disc[child]:
+            in_scc = None
+            while in_scc != child:
+                in_scc = self.stack.pop()
+                scc.add(in_scc)
+                self.in_stack[in_scc] = False
+            if len(scc) > 1:
+                self.sccs.update(scc)
+            scc.clear()
+        if parent is not None:
+            self.low[parent] = min(self.low[parent], self.low[parent])
         return []
 
     def lazy_iter(self, parent_child):
@@ -127,22 +129,21 @@ class _CellGraph():
         self.disc[u] = self.time
         self.low[u] = self.time
         self.time += 1
-        self.stackMember[u] = True
+        self.in_stack[u] = True
         self.stack.append(u)
- 
+
+        # Create a to_do list of nodes to recur on in main function
         to_do_list = []
-        post_recur = lambda cell: self.post_recursion(cell)
-        to_do_list.append((post_recur, parent_child))
+        # Add the function to run after all children have been visited to the
+        # to_do list to which the children recursion are stacked on top of
+        to_do_list.append((self.post_recursion, parent_child))
         # Go through all vertices adjacent to this
         for v in self.graph[u]:
             # If v is not visited yet, then recur for it
             if self.disc[v] == -1:
-                # Check if the subtree rooted with v has a connection to
-                # one of the ancestors of u
-                
-                recur = lambda child_grandchild : self.lazy_iter(child_grandchild)
-                to_do_list.append((recur, (u, v)))
-            elif self.stackMember[v]:
+                # Add recursion on child to the to_do
+                to_do_list.append((self.lazy_iter, (u, v)))
+            elif self.in_stack[v]:
                 # Update low value of 'u' only if 'v' is still in stack
                 # This is a loop as 'u' to 'v' is a back edge
                 self.low[u] = min(self.low[u], self.disc[v])
@@ -151,13 +152,14 @@ class _CellGraph():
 
     def lazy_SCC(self):
         self.time = 0
-        self.setList.clear()
+        self.sccs.clear()
         self.stack.clear()
         for n in self.nodes:
             self.disc[n] = -1
             self.low[n] = -1
-            self.stackMember[n] = False
+            self.in_stack[n] = False
         
+        # A to_do list to perform recursions without creating frames
         to_do = []
         for n in self.nodes:
             if self.disc[n] == -1:
@@ -165,7 +167,6 @@ class _CellGraph():
             while to_do:
                 recur, args = to_do.pop()
                 to_do.extend(recur(args))
-        self.setList.reverse()
         
     # recursive function that find finds and prints strongly connected components using DFS traversal
     # u --> The vertex to be visited next
@@ -176,7 +177,7 @@ class _CellGraph():
         self.disc[u] = self.time
         self.low[u] = self.time
         self.time += 1
-        self.stackMember[u] = True
+        self.in_stack[u] = True
         self.stack.append(u)
  
         # Go through all vertices adjacent to this
@@ -187,7 +188,7 @@ class _CellGraph():
                 # Check if the subtree rooted with v has a connection to
                 # one of the ancestors of u
                 self.low[u] = min(self.low[u], self.low[v])
-            elif self.stackMember[v]:
+            elif self.in_stack[v]:
                 # Update low value of 'u' only if 'v' is still in stack
                 # This is a loop as 'u' to 'v' is a back edge
                 self.low[u] = min(self.low[u], self.disc[v])
@@ -196,12 +197,13 @@ class _CellGraph():
         # descendents will have low != disc as the low value is the head
         if self.low[u] == self.disc[u]:
             w = None
+            scc = set()
             while w != u:
                 w = self.stack.pop()
-                self.currentSet.add(w)
-                self.stackMember[w] = False
-            self.setList.append(self.currentSet.copy())
-            self.currentSet.clear()
+                scc.add(w)
+                self.in_stack[w] = False
+            self.setList.append(scc.copy())
+            scc.clear()
             #return scc
  
     # The function to do DFS traversal.
@@ -218,7 +220,7 @@ class _CellGraph():
         for n in self.nodes:
             self.disc[n] = -1
             self.low[n] = -1
-            self.stackMember[n] = False
+            self.in_stack[n] = False
         
         # Call the recursive helper function
         # to find articulation points
