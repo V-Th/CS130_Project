@@ -112,15 +112,17 @@ class Workbook():
 
     # Check missing sheets to update cells that may need it
     def _check_missing_sheets(self, sheet_name: str):
-        if sheet_name.upper() in self._missing_sheets.keys():
-            for cell in self._missing_sheets[sheet_name.upper()]:
-                old_val = cell.get_value()
-                cell.update_value()
-                if (old_val == cell.get_value()):
-                    continue
-                self.changed_cells.append((cell.sheet_name[0:], cell.location[0:]))
-            self._update_references(self._missing_sheets[sheet_name.upper()])
-            self._call_notification()
+        sheet_upper = sheet_name.upper()
+        if not sheet_upper in self._missing_sheets.keys():
+            return
+        for cell in self._missing_sheets[sheet_upper]:
+            old_val = cell.get_value()
+            cell.update_value()
+            if (old_val == cell.get_value()):
+                continue
+            self.changed_cells.append((cell.sheet_name, cell.location))
+        self._update_references(self._missing_sheets[sheet_upper])
+        self._call_notification()
     
     # creates new empty spreadsheet if the given sheet_name is valid 
     # returns a the index and name of the new spreadsheet
@@ -149,7 +151,7 @@ class Workbook():
                 continue
             if cell in original_set:
                 continue
-            self.changed_cells.append((cell.sheet_name[0:], cell.location[0:]))
+            self.changed_cells.append((cell.sheet_name, cell.location))
 
     # delete the given spreadsheet
     # Take cells of deleted sheet and updates them to None
@@ -227,55 +229,59 @@ class Workbook():
             raise ValueError
 
         # check if the sheet already has a cell, if not create one
+        sheet_upper = sheet_name.upper()
         if not self._location_exists(sheet_name, loc):
-            self._sheets[sheet_name.upper()][loc.upper()] = _Cell(self.workbook, sheet_name, loc)
+            self._sheets[sheet_upper][loc.upper()] = _Cell(self.workbook, sheet_name, loc)
         else:
-            self._graph.remove_node(self._sheets[sheet_name.upper()][loc.upper()])
+            self._graph.remove_node(self._sheets[sheet_upper][loc.upper()])
             for f_sheet in self._missing_sheets.keys():
                 cells = self._missing_sheets[f_sheet]
-                if self._sheets[sheet_name.upper()][loc.upper()] in cells:
-                    cells.remove(self._sheets[sheet_name.upper()][loc.upper()])
+                if self._sheets[sheet_upper][loc.upper()] in cells:
+                    cells.remove(self._sheets[sheet_upper][loc.upper()])
 
         # update the cell contents
-        old_val = self._sheets[sheet_name.upper()][loc.upper()].get_value()
-        self._sheets[sheet_name.upper()][loc.upper()].set_contents(contents)
-        self._sheets[sheet_name.upper()][loc.upper()].update_value()
-        if (old_val != self._sheets[sheet_name.upper()][loc.upper()].get_value()):
+        old_val = self._sheets[sheet_upper][loc.upper()].get_value()
+        self._sheets[sheet_upper][loc.upper()].set_contents(contents)
+        self._sheets[sheet_upper][loc.upper()].update_value()
+        if (old_val != self._sheets[sheet_upper][loc.upper()].get_value()):
             self.changed_cells.append((sheet_name, loc))
     
     # set the cell of the given location to the given contents
     # return true if successful, false otherwise
     def set_cell_contents(self, sheet_name: str, loc: str, contents:str) -> None:
         self._set_cell_contents(sheet_name, loc, contents)
+        cell = self._sheets[sheet_name.upper()][loc.upper()]
         self._check_for_loop()
-        self._update_references([self._sheets[sheet_name.upper()][loc.upper()]])
+        self._update_references([cell])
         self._call_notification()
-        self._update_sheet_extent(sheet_name.upper(), self._sheets[sheet_name.upper()][loc.upper()])
+        self._update_sheet_extent(sheet_name.upper(), cell)
 
     # return the cell object at a particular location
-    def add_dependency(self, src_cell: _Cell, location: str, sheet_name: str) -> None:
+    def add_dependency(self, src_cell: _Cell, loc: str, sheet_name: str) -> None:
+        sheet_upper = sheet_name.upper()
         if not self._sheet_name_exists(sheet_name):
-            if sheet_name.upper() not in self._missing_sheets.keys():
-                self._missing_sheets[sheet_name.upper()] = []
-            self._missing_sheets[sheet_name.upper()].append(src_cell)
+            if sheet_upper not in self._missing_sheets.keys():
+                self._missing_sheets[sheet_upper] = []
+            self._missing_sheets[sheet_upper].append(src_cell)
             assert self._sheet_name_exists(sheet_name)
-        assert self._is_valid_location(location.upper())
+        assert self._is_valid_location(loc.upper())
 
         # check if the sheet already has a cell, if not create one
-        if not self._location_exists(sheet_name, location):
-            self._sheets[sheet_name.upper()][location.upper()] = _Cell(self.workbook, sheet_name, location)
-        dest_cell = self._sheets[sheet_name.upper()][location.upper()]
+        if not self._location_exists(sheet_name, loc):
+            blank_cell = _Cell(self.workbook, sheet_name, loc)
+            self._sheets[sheet_upper][loc.upper()] = blank_cell
+        dest_cell = self._sheets[sheet_upper][loc.upper()]
         self._graph.add_edge(src_cell, dest_cell)
     
     # return the contents of the cell at the given location
-    def get_cell_contents(self, sheet_name: str, location: str):
+    def get_cell_contents(self, sheet_name: str, loc: str):
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
-        if not self._is_valid_location(location):
+        if not self._is_valid_location(loc):
             raise ValueError
-        if not self._location_exists(sheet_name, location):
+        if not self._location_exists(sheet_name, loc):
             return None
-        return self._sheets[sheet_name.upper()][location.upper()].get_contents()
+        return self._sheets[sheet_name.upper()][loc.upper()].get_contents()
 
     # return the value of the cell at the given location    
     def get_cell_value(self, sheet_name: str, location: str):
