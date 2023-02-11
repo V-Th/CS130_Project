@@ -147,7 +147,7 @@ class Workbook():
     def _update_references(self, cells: list):
         original_set = cells.copy()
         ref_cells = []
-        self._graph.dfs_nodes(cells, ref_cells)
+        self._graph.bfs_nodes(cells, ref_cells)
         for cell in ref_cells:
             old_val = cell.get_value()
             cell.update_value()

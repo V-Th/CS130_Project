@@ -38,16 +38,9 @@ class _CellGraph():
             direct_refs.extend(self.graph[node])
         return direct_refs
 
-    # Iterative dfs search for nodes
-    # Takes a list of nodes and finds the nodes that rely on them
-    def dfs_nodes(self, remianing: list, visited: list):
-        # sccs = set()
-        # for scc in self.setList:
-        #     if len(scc) == 1:
-        #         continue
-        #     sccs.update(scc)
-        while len(remianing) != 0:
-            node = remianing.pop()
+    def bfs_nodes(self, remaining: list, visited: list):
+        while remaining:
+            node = remaining.pop(0)
             # node_scc = set()
             # for scc in self.setList:
             #     if node in scc:
@@ -60,8 +53,33 @@ class _CellGraph():
             for child in self.graph[node]:
                 if child in self.sccs or child == node:
                     continue
-                if child not in remianing:
-                    remianing.append(child)
+                if child not in remaining:
+                    remaining.append(child)
+
+    # Iterative dfs search for nodes
+    # Takes a list of nodes and finds the nodes that rely on them
+    def dfs_nodes(self, remaining: list, visited: list):
+        # sccs = set()
+        # for scc in self.setList:
+        #     if len(scc) == 1:
+        #         continue
+        #     sccs.update(scc)
+        while remaining:
+            node = remaining.pop()
+            # node_scc = set()
+            # for scc in self.setList:
+            #     if node in scc:
+            #         node_scc = scc
+            # If node was visited, it has an earlier dependency
+            # It would have been updated twice
+            if node in visited:
+                visited.remove(node)
+            visited.append(node)
+            for child in self.graph[node]:
+                if child in self.sccs or child == node:
+                    continue
+                if child not in remaining:
+                    remaining.append(child)
     
     # remove a given node from the graph
     def remove_node(self, node):
