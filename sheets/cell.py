@@ -92,12 +92,22 @@ class _Cell():
         evaluator = FormulaManipulation(new_name, old_name)
         parsed = parser.parse(self.contents)
         self.contents = '= '+ evaluator.transform(parsed)
+    
+    # given another location, compare to this cell's location
+    # return contents with cell references adjusted accordingly
+    def get_relative_contents(self, x_diff, y_diff, new_sheet_name = None) -> str:
+        if self.contents.lstrip()[0] != '=':
+            return self.contents
+        evaluator = FormulaManipulation(self.workbook, x_diff, y_diff, new_sheet_name)
+        parsed = parser.parse(self.contents)
+        return '= ' + evaluator.transform(parsed)
+        
 
 def check_arithmetic_input(value):
     if isinstance(value, (decimal.Decimal, CellError)):
         return value
     elif value is None:
-        return decimal.Decimal()
+        return decimal.Decimal
     try:
         return decimal.Decimal(value)
     except decimal.InvalidOperation as err:
@@ -251,3 +261,85 @@ class FormulaManipulation(lark.Transformer):
         if not set(sheet_name).isdisjoint(_REQUIRE_QUOTES):
             return '\''+sheet_name+'\''+'!'+values[1]
         return sheet_name+'!'+values[1]
+
+
+    def __init__(self, workbook, x_diff, y_diff, new_sheet_name = None):
+        self.wb = workbook
+        self.x_diff = x_diff
+        self.y_diff = y_diff
+        new_sheet_name = new_sheet_name
+
+    def add_expr(self, values):
+        return values[0]+' '+values[1]+' '+values[2]
+
+    def mul_expr(self, values):
+        return values[0]+' '+values[1]+' '+values[2]
+
+    def concat_expr(self, values):
+        return values[0]+' '+'&'+' '+values[1]
+
+    def unary_op(self, values):
+        return values[0] + values[1]
+
+    def error(self, values):
+        return values[0]
+
+    def number(self, values):
+        return values[0]
+    
+    def string(self, values):
+        return values[0]
+    
+    def parens(self, values):
+        return '('+values[0]+')'
+
+    def cell(self, values):
+        if len(values) == 1:
+            x, y = self.wb._loc_to_tuple(values[0]) 
+            return self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
+        else:
+            x, y = self.wb._loc_to_tuple(values[1]) 
+            if self.new_sheet_name != None:
+                return self.new_sheet_name+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
+            return values[0]+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
+
+class FormulaManipulation(lark.Transformer):
+    def __init__(self, workbook, x_diff, y_diff, new_sheet_name = None):
+        self.wb = workbook
+        self.x_diff = x_diff
+        self.y_diff = y_diff
+        new_sheet_name = new_sheet_name
+
+    def add_expr(self, values):
+        return values[0]+' '+values[1]+' '+values[2]
+
+    def mul_expr(self, values):
+        return values[0]+' '+values[1]+' '+values[2]
+
+    def concat_expr(self, values):
+        return values[0]+' '+'&'+' '+values[1]
+
+    def unary_op(self, values):
+        return values[0] + values[1]
+
+    def error(self, values):
+        return values[0]
+
+    def number(self, values):
+        return values[0]
+    
+    def string(self, values):
+        return values[0]
+    
+    def parens(self, values):
+        return '('+values[0]+')'
+
+    def cell(self, values):
+        if len(values) == 1:
+            x, y = self.wb._loc_to_tuple(values[0]) 
+            return self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
+        else:
+            x, y = self.wb._loc_to_tuple(values[1]) 
+            if self.new_sheet_name != None:
+                return self.new_sheet_name+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
+            return values[0]+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)

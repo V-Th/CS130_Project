@@ -101,6 +101,16 @@ class Workbook():
                 break
         return (a, b)
     
+    def _tuple_to_loc(self, a: int, b: int) -> str:
+        letter_str = ""
+        while (a > 0):
+            modulo = (a - 1) % 26
+            letter_str = (chr((modulo) + ord('A'))) + letter_str
+            a = (a - 1) // 26
+        if not self._is_valid_location(letter_str + str(b)):
+            return "#REF!"
+        return letter_str + str(b) 
+    
     # returns whether the given string represents a valid location in the sheet
     def _is_valid_location(self, location: str) -> bool:
         if len(location) > 8 or len(location) < 2:
@@ -354,3 +364,78 @@ class Workbook():
         self._call_notification()
         self._check_missing_sheets(copy_name)
         return idx, copy_name
+    
+    def move_cells(self, sheet_name: str, start_location: str,
+            end_location: str, to_location: str, to_sheet: Optional[str] = None) -> None:
+        if to_sheet == None:
+            to_sheet = sheet_name
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        if not self._location_exists(sheet_name, start_location):
+            raise KeyError
+        if not self._location_exists(sheet_name, end_location):
+            raise KeyError
+        if to_sheet is not None and not self._sheet_name_exists(to_sheet):
+            raise ValueError
+        if not self._is_valid_location(to_location):
+            raise ValueError
+        
+        min_location = min(start_location, end_location)
+        x_diff = self._loc_to_tuple(to_location)[0] - self._loc_to_tuple(min_location)[0]
+        y_diff = self._loc_to_tuple(to_location)[1] - self._loc_to_tuple(min_location)[1]
+        
+        x1, y1 = self._loc_to_tuple(start_location)
+        x2, y2 = self._loc_to_tuple(end_location)
+        
+        contents = {}
+
+        for i in range(min(x1, x2), max(x1, x2) + 1):
+            for j in range(min(y1, y2), max(y1, y2) + 1):
+                old_location = self._tuple_to_loc(i, j)
+                start_cell = self._sheets[sheet_name.upper()][old_location.upper()]
+                contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
+                self.set_cell_contents(sheet_name, old_location, None)
+
+        for i in range(min(x1, x2), max(x1, x2) + 1):
+            for j in range(min(y1, y2), max(y1, y2) + 1):
+                old_location = self._tuple_to_loc(i, j)
+                new_location = self._tuple_to_loc(i + x_diff, j + y_diff)
+                self.set_cell_contents(to_sheet, new_location, contents[old_location])
+
+
+    def copy_cells(self, sheet_name: str, start_location: str, 
+            end_location: str, to_location: str, to_sheet: Optional[str] = None) -> None:
+        if to_sheet == None:
+            to_sheet = sheet_name
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        if not self._location_exists(sheet_name, start_location):
+            raise KeyError
+        if not self._location_exists(sheet_name, end_location):
+            raise KeyError
+        if to_sheet is not None and not self._sheet_name_exists(to_sheet):
+            raise ValueError
+        if not self._is_valid_location(to_location):
+            raise ValueError
+        
+        min_location = min(start_location, end_location)
+        x_diff = self._loc_to_tuple(to_location)[0] - self._loc_to_tuple(min_location)[0]
+        y_diff = self._loc_to_tuple(to_location)[1] - self._loc_to_tuple(min_location)[1]
+        
+        x1, y1 = self._loc_to_tuple(start_location)
+        x2, y2 = self._loc_to_tuple(end_location)
+        
+        contents = {}
+
+        for i in range(min(x1, x2), max(x1, x2) + 1):
+            for j in range(min(y1, y2), max(y1, y2) + 1):
+                old_location = self._tuple_to_loc(i, j)
+                start_cell = self._sheets[sheet_name.upper()][old_location.upper()]
+                contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
+
+        for i in range(min(x1, x2), max(x1, x2) + 1):
+            for j in range(min(y1, y2), max(y1, y2) + 1):
+                old_location = self._tuple_to_loc(i, j)
+                new_location = self._tuple_to_loc(i + x_diff, j + y_diff)
+                self.set_cell_contents(to_sheet, new_location, contents[old_location])
+
