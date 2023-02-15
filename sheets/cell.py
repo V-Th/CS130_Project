@@ -211,15 +211,19 @@ class FormulaEvaluator(lark.visitors.Interpreter):
 
     def cell(self, tree):
         if (len(tree.children) == 1):
-            self.wb.add_dependency(self.this_cell, tree.children[0], self.sheet)
-            other_cell = self.wb._sheets[self.sheet.upper()][tree.children[0].upper()].get_value()
+            cellref = tree.children[0].replace('$', '')
+            self.wb.add_dependency(self.this_cell, cellref, self.sheet)
+            other_cell = self.wb._sheets[self.sheet.upper()][cellref.upper()].get_value()
             # other_cell = self.wb.get_cell_value(self.sheet, tree.children[0])
         else:
             sheet_name = tree.children[0]
             if sheet_name[0] == '\'':
                 sheet_name = sheet_name[1:-1]
-            self.wb.add_dependency(self.this_cell, tree.children[1], sheet_name)
-            other_cell = self.wb._sheets[sheet_name.upper()][tree.children[1].upper()].get_value()
+            cellref = tree.children[1].replace('$', '')
+            self.wb.add_dependency(self.this_cell, cellref, self.sheet)
+            other_cell = self.wb._sheets[self.sheet.upper()][cellref.upper()].get_value()
+            #self.wb.add_dependency(self.this_cell, tree.children[1], sheet_name)
+            #other_cell = self.wb._sheets[sheet_name.upper()][tree.children[1].upper()].get_value()
             # other_cell = self.wb.get_cell_value(sheet_name, tree.children[1])
         return other_cell
 
@@ -336,10 +340,23 @@ class FormulaManipulation(lark.Transformer):
 
     def cell(self, values):
         if len(values) == 1:
-            x, y = self.wb._loc_to_tuple(values[0]) 
+            if values[0][0] == '$':
+                self.x_diff = 0
+                values[0] = values[0][1:]
+            if values[0].find('$') > 0:
+                self.y_diff = 0
+            cellref = values[0].replace('$', '')
+            x, y = self.wb._loc_to_tuple(cellref) 
             return self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
         else:
-            x, y = self.wb._loc_to_tuple(values[1]) 
+            if values[1][0] == '$':
+                self.x_diff = 0
+                values[0] = values[0][1:]
+            if values[1].find('$'):
+                self.y_diff = 0
+            cellref = values[1].replace('$', '')
+            x, y = self.wb._loc_to_tuple(cellref) 
             if self.new_sheet_name != None:
                 return self.new_sheet_name+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
             return values[0]+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
+
