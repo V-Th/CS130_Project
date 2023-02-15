@@ -40,5 +40,16 @@ class TestMethods(unittest.TestCase):
         self.assertEqual(a1_v, decimal.Decimal(1))
         self.assertEqual(a1_v, decimal.Decimal(1))
 
+    def test_touch_loop(self):
+        self.wb.set_cell_contents(self.s1, 'a1', '=b1')
+        self.wb.set_cell_contents(self.s1, 'a2', '=a1')
+        self.wb.set_cell_contents(self.s1, 'b1', '=a1')
+        a1_v = self.wb.get_cell_value(self.s1, 'a1')
+        a2_v = self.wb.get_cell_value(self.s1, 'a2')
+        self.assertIsInstance(a1_v, CellError)
+        self.assertEqual(a1_v.get_type(), CellErrorType.CIRCULAR_REFERENCE)
+        self.assertIsInstance(a2_v, CellError)
+        self.assertEqual(a2_v.get_type(), CellErrorType.CIRCULAR_REFERENCE)
+
 if __name__ == '__main__':
     unittest.main()
