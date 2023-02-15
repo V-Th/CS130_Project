@@ -78,7 +78,11 @@ class _Cell():
         else:
             self.contents = contents.strip()
             if self.contents[0] == '=':
-                self.tree = parser.parse(self.contents)
+                try:
+                    self.tree = parser.parse(self.contents)
+                except lark.exceptions.LarkError:
+                    detail = 'Cannot be parsed; please check input'
+                    self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
     # return literal contents of cell
     def get_contents(self):
@@ -212,14 +216,14 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     def cell(self, tree):
         if (len(tree.children) == 1):
             cellref = tree.children[0].replace('$', '')
-            self.wb.add_dependency(self.this_cell, cellref, self.sheet)
+            self.wb._add_dependency(self.this_cell, cellref, self.sheet)
             other_cell = self.wb._sheets[self.sheet.upper()][cellref.upper()].get_value()
         else:
             sheet_name = tree.children[0]
             if sheet_name[0] == '\'':
                 sheet_name = sheet_name[1:-1]
             cellref = tree.children[1].replace('$', '')
-            self.wb.add_dependency(self.this_cell, cellref, sheet_name)
+            self.wb._add_dependency(self.this_cell, cellref, sheet_name)
             other_cell = self.wb._sheets[sheet_name.upper()][cellref.upper()].get_value()
         return other_cell
 
@@ -314,4 +318,3 @@ class CellrefManipulation(lark.Transformer):
             if self.new_sheet_name != None:
                 return self.new_sheet_name+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
             return values[0]+'!'+ self.wb._tuple_to_loc(x + self.x_diff, y + self.y_diff)
-
