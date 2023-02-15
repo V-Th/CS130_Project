@@ -6,8 +6,9 @@ import re
 import string
 import logging
 import json
+import os
 
-_RE = re.compile('[A-Za-z]+[1-9][0-9]*')
+_RE = re.compile('[$]?[A-Za-z]+[$]?[1-9][0-9]*')
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
     
 class Workbook():
@@ -22,7 +23,7 @@ class Workbook():
         self.changed_cells = []
 
     def save_workbook(self, f: string):
-        if (f[-5:] != '.json'):
+        if (f.endswith('.json') == False):
             raise ValueError
         sheet_list = []
         for sheet in self.list_sheets():
@@ -31,10 +32,13 @@ class Workbook():
                 sheet_dict['cell_contents'][loc] = self._sheets[sheet.upper()][loc].toJSON()
             sheet_list.append(sheet_dict)
         out_file = open(f, "w")
-        json.dump({'sheets':sheet_list}, out_file, indent = 4)
+        if self.num_sheets() > 0:
+            json.dump({'sheets':sheet_list}, out_file, indent = 4)
         out_file.close()
     
     def load_workbook(self, f: string):
+        if os.path.getsize(f) == 0:
+            return
         try:
             f = open(f)
             data = json.load(f)
@@ -424,7 +428,7 @@ class Workbook():
         
         x1, y1 = self._loc_to_tuple(start_location)
         x2, y2 = self._loc_to_tuple(end_location)
-        
+
         contents = {}
 
         for i in range(min(x1, x2), max(x1, x2) + 1):
