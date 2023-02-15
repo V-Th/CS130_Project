@@ -107,7 +107,7 @@ def check_arithmetic_input(value):
     if isinstance(value, (decimal.Decimal, CellError)):
         return value
     elif value is None:
-        return decimal.Decimal
+        return decimal.Decimal()
     try:
         return decimal.Decimal(value)
     except decimal.InvalidOperation as err:
@@ -214,17 +214,13 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             cellref = tree.children[0].replace('$', '')
             self.wb.add_dependency(self.this_cell, cellref, self.sheet)
             other_cell = self.wb._sheets[self.sheet.upper()][cellref.upper()].get_value()
-            # other_cell = self.wb.get_cell_value(self.sheet, tree.children[0])
         else:
             sheet_name = tree.children[0]
             if sheet_name[0] == '\'':
                 sheet_name = sheet_name[1:-1]
             cellref = tree.children[1].replace('$', '')
-            self.wb.add_dependency(self.this_cell, cellref, self.sheet)
-            other_cell = self.wb._sheets[self.sheet.upper()][cellref.upper()].get_value()
-            #self.wb.add_dependency(self.this_cell, tree.children[1], sheet_name)
-            #other_cell = self.wb._sheets[sheet_name.upper()][tree.children[1].upper()].get_value()
-            # other_cell = self.wb.get_cell_value(sheet_name, tree.children[1])
+            self.wb.add_dependency(self.this_cell, cellref, sheet_name)
+            other_cell = self.wb._sheets[sheet_name.upper()][cellref.upper()].get_value()
         return other_cell
 
 class SheetNameManipulation(lark.Transformer):
