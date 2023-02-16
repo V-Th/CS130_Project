@@ -36,7 +36,8 @@ D1.  [3pts] Moving and copying regions of a sheet are very similar operations,
      with only a few differences between them.  How did your team take advantage
      of the similarity of these two operations to reduce the amount of code
      required to provide this functionality?
-     We created several helper functions to reduce the overall amount of code, 
+
+     We created several helper functions to reduce the overall amount of code,
      one to convert a location tuple to a string representing a cell location,
      one to check the validity of the arguments, and one to select all the 
      original cells' contents.
@@ -45,11 +46,13 @@ D2.  [3pts] Similarly, moving/copying regions of a sheet, and renaming a sheet,
      both involve formula updates.  Was your team able to factor out common
      aspects of these two operations to reduce the amount of code required to
      implement these operations?  If so, what did you do?  If not, why not?
+
      We chose to updating the formula in the cell module using a transformer,
      so the same methods in the cell are used during the move and copy methods.  
 
 D3.  [3pts] How does your implementation address the challenges of moving or
      copying a region of cells where the source and target regions overlap?
+
      We addressed this by first copying the original contents, then replacing
      the necessary contents so the functionality is simple and clean.
 
@@ -61,18 +64,35 @@ L1.  [5pts] The Project 3 spec includes an example of a subtle implementation
      Briefly describe the cause of the buggy behavior, and what is the
      recommended approach for avoiding the buggy behavior.
 
+     The buggy behavior surrounded the default argument of a dictionary used in
+     the function in order to add to a pre-existing count of letters. However, even
+     when no pre-existing count is provided the pre-existing count is still stored
+     within as a local variable in the default dictionary.
+
+     To avoid this buggy behavior, a default argument of None can be used instead
+     with a if-condition to catch the None and provide an empty dictionary. This
+     avoids the default from storing the dictionary. 
 
 L2.  [4pts] What code-linter did your team use on your project?  Why did you
      choose it?  Was this the first CS130 project in which you used a linter?
 
+     The linter chosen why Pylint which was recommended and was straight forward
+     in using for our project. This was the first project that we used a linter.
 
 L3.  [3pts] How did you automate the execution of your code linter?  Did
      everyone in your team find it easy to run?
+
+     Pylint runs automatically on Vscode highlighting violations. We all found
+     it quite easy to use because of this but quite annoying to look at.
 
 
 L4.  [4pts] Did the use of the linter improve your overall code quality and
      correctness?  Give some specific details in your answer.  Were there any
      serious issues (e.g. buggy language idioms) you were unaware of?
+
+     There was luckily no serious issues that the linter pointed out to us. Most
+     of the improvements in code quality came from having proper variable names
+     and proper documentation throughout our code.
 
 
 Performance Improvement (18 pts)
@@ -88,37 +108,55 @@ this investigation, and fix performance issues in your code.
 P1.  [7pts] Give a brief overview of 3-4 of the worst hot-spots you identified
      in your performance testing and analysis.  For each one, describe how your
      team was able to resolve it.
-    One hotspot was the number of check_for_loops ran for updating a single cell
-    value. This was due to how cell formulas were re-evaluated which called for
-    loop checking when the graph had not been changed.
-    Formula evaluation without the cycle checking was also another hotspot simply
-    due to the parsing that was called. The parsing only needed to happen once
-    the contents was set not evaluated, so the parsing was moved to happen after
-    setting contents instead of before an evaluation.
-    After resolving those two hotspots, the hotspot was the dfs_node search that
-    finds the cells to update from the references. At first, the algorithm would
-    find the SCC that involved the node to avoid loops but was changed to just
-    exclude all SCC's in its search.
-    After resolving the dfs_node, a Fibonacci benchmark was added to the performance
-    test, and it was found that the dfs_node was still a hotspot. A breadth-first
-    search was added instead and worked much better. In hindsight, a depth-first
-    search was a horrendous idea.
+
+     One hotspot was the number of check_for_loops ran for updating a single cell
+     value. This was due to how cell formulas were re-evaluated which called for
+     loop checking when the graph had not been changed.
+
+     Formula evaluation without the cycle checking was also another hotspot simply
+     due to the parsing that was called. The parsing only needed to happen once
+     the contents was set not evaluated, so the parsing was moved to happen after
+     setting contents instead of before an evaluation.
+
+     After resolving those two hotspots, the hotspot was the dfs_node search that
+     finds the cells to update from the references. At first, the algorithm would
+     find the SCC that involved the node to avoid loops but was changed to just
+     exclude all SCC's in its search.
+
+     After resolving the dfs_node, a Fibonacci benchmark was added to the performance
+     test, and it was found that the dfs_node was still a hotspot. A breadth-first
+     search was added instead and worked much better. In hindsight, a depth-first
+     search was a horrendous idea.
 
 P2.  [4pts] Did your team try anything to resolve performance issues and find
      that it didn't improve things at all - perhaps even made things worse?
      If so, were you able to identify why the intended fix didn't produce the
      desired benefit?
 
+     The effort to improve the dfs_node function mention earlier did absolutely
+     nothing as it was flawed from the beginning as a poor design choice. Thus,
+     there was no benefit once the switch was made to a bfs.
 
 P3.  [4pts] How do you feel that your performance updates affected your code's
      readability and maintainability?  Did it make it better? worse? unchanged?
      Elaborate on your answer.
 
+     The main changes involved were centered about the cellgraph as the whole
+     SCC algorithm was rewritten to work around the recursion limit. The end result
+     is that our previous recurison function was split into two parts that makes
+     the function harder to understand. This makes our readability and
+     maintainability worse but necessary to meet the performance requirements.
 
 P4.  [3pts] Did your performance updates cause any regressions in functionality?
      If so, briefly describe any issues that emerged.  How were these issues
      identified (e.g. automated test failures, manual testing, etc.)?  How
      quickly were issues identified?
+
+     In developing a solution to the recursion limit, there were many iterations
+     of the SCC algorithm that introduced many regressions. All of them were
+     caught using the automated testing of basic features. These regressions
+     were mainly surrounding the loop detection as the new SCC algorithm simply
+     didn't work in catching loops.
 
 
 Section F:  CS130 Project 3 Feedback [OPTIONAL]
