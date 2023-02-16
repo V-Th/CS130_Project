@@ -313,7 +313,7 @@ class Workbook():
         Set the cell of the given location to the given contents
         '''
         self._set_cell_contents(sheet_name, loc, contents)
-        cell = self._sheets[sheet_name.upper()][loc.upper()]
+        cell = self.sheets[sheet_name.upper()][loc.upper()]
         loops = self._check_for_loop()
         loops.append(cell)
         self._update_references(loops)
