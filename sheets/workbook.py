@@ -275,10 +275,13 @@ class Workbook():
     def _check_for_loop(self):
         self._graph.lazy_SCC()
         # for those in SCC sets with other, set CIRCREF error
+        cells_in_loop = []
         for cell in self._graph.nodes:
             if cell in self._graph.sccs or cell in self._graph.graph[cell]:
+                cells_in_loop.append(cell)
                 err_str = "Circular reference detected"
                 cell.value = CellError(CellErrorType(2), err_str)
+        return cells_in_loop
 
     # Internal call to add cells to sheet, avoids unnecessary checks
     def _set_cell_contents(self, sheet_name: str, loc: str, contents:str):
@@ -310,9 +313,10 @@ class Workbook():
         Set the cell of the given location to the given contents
         '''
         self._set_cell_contents(sheet_name, loc, contents)
-        cell = self.sheets[sheet_name.upper()][loc.upper()]
-        self._check_for_loop()
-        self._update_references([cell])
+        cell = self._sheets[sheet_name.upper()][loc.upper()]
+        loops = self._check_for_loop()
+        loops.append(cell)
+        self._update_references(loops)
         self._call_notification()
         self._update_sheet_extent(sheet_name.upper(), cell)
 
