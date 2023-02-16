@@ -26,7 +26,7 @@ class Workbook():
 
     def __init__(self):
         self.workbook = self
-        self._sheets = {}
+        self.sheets = {}
         self._extents = {}
         self._display_sheets = {}
         self._missing_sheets = {}
@@ -46,8 +46,8 @@ class Workbook():
         sheet_list = []
         for sheet in self.list_sheets():
             sheet_dict = {'name':sheet, 'cell_contents':{}}
-            for loc in self._sheets[sheet.upper()]:
-                sheet_dict['cell_contents'][loc] = self._sheets[sheet.upper()][loc].toJSON()
+            for loc in self.sheets[sheet.upper()]:
+                sheet_dict['cell_contents'][loc] = self.sheets[sheet.upper()][loc].toJSON()
             sheet_list.append(sheet_dict)
         with open(filename, encoding="utf-8") as out_file:
             contents = out_file.write()
@@ -99,7 +99,7 @@ class Workbook():
         '''
         Reports the number of sheets in the workbook.
         '''
-        return len(self._sheets)
+        return len(self.sheets)
 
     def list_sheets(self) -> list[str]:
         '''
@@ -110,11 +110,11 @@ class Workbook():
 
     def _sheet_name_exists(self, sheet_name: str) -> bool:
         # Checks that the sheet name exists within the workbook
-        return sheet_name.upper() in self._sheets
+        return sheet_name.upper() in self.sheets
 
     def _location_exists(self, sheet_name:str, loc: str) -> bool:
         # Checks that the location exists in the sheet
-        return loc.upper() in self._sheets[sheet_name.upper()].keys()
+        return loc.upper() in self.sheets[sheet_name.upper()].keys()
 
     # returns false if given sheet name has leading or trailing whitespace,
     # already exists in the workbook, or contains an illegal character true
@@ -136,8 +136,10 @@ class Workbook():
             return False
         return True
 
-    def _loc_to_tuple(self, loc: str):
-        # Converts a location to 2-tuple (row, col)
+    def loc_to_tuple(self, loc: str):
+        '''
+        Converts a location to 2-tuple (row, col)
+        '''
         row, col = 0, 0
         for i, char in enumerate(loc):
             if char.upper().isalpha():
@@ -147,8 +149,10 @@ class Workbook():
                 break
         return (row, col)
 
-    def _tuple_to_loc(self, row: int, col: int) -> str:
-        # Converts row and col to location in workbook
+    def tuple_to_loc(self, row: int, col: int) -> str:
+        '''
+        Converts row and col to location in workbook
+        '''
         letter_str = ""
         while row > 0:
             modulo = (row - 1) % 26
@@ -165,7 +169,7 @@ class Workbook():
         if _RE.match(location) is None:
             return False
         # check that location is within limits A-ZZZZ and 1-9999
-        row, col = self._loc_to_tuple(location)
+        row, col = self.loc_to_tuple(location)
         if row > 475254 or col > 9999:
             return False
         return True
@@ -198,7 +202,7 @@ class Workbook():
             sheet_name = "Sheet" + str(num)
         elif not self._is_valid_sheet(sheet_name):
             raise ValueError
-        self._sheets[sheet_name.upper()] = {}
+        self.sheets[sheet_name.upper()] = {}
         self._display_sheets[sheet_name.upper()] = sheet_name
         self._update_sheet_extent(sheet_name.upper(), None)
         self._check_missing_sheets(sheet_name)
@@ -224,7 +228,7 @@ class Workbook():
         '''
         if self._sheet_name_exists(sheet_name):
             sheet_upper = sheet_name.upper()
-            dead_sheet = self._sheets.pop(sheet_upper)
+            dead_sheet = self.sheets.pop(sheet_upper)
             self._display_sheets.pop(sheet_upper)
             self._extents.pop(sheet_upper)
             self._update_references(list(dead_sheet.values()))
@@ -250,17 +254,17 @@ class Workbook():
             self._extents[sheet_upper] = (max_a, max_b)
             return
         if cell.get_contents() is None:
-            for loc in self._sheets[sheet_upper].keys():
-                content = self._sheets[sheet_upper][loc.upper()].get_contents()
+            for loc in self.sheets[sheet_upper].keys():
+                content = self.sheets[sheet_upper][loc.upper()].get_contents()
                 if content is None:
                     continue
-                row, col = self._loc_to_tuple(loc)
+                row, col = self.loc_to_tuple(loc)
                 if row > max_a:
                     max_a = row
                 if col > max_b:
                     max_b = col
         elif cell.get_contents():
-            row, col = self._loc_to_tuple(cell.location)
+            row, col = self.loc_to_tuple(cell.location)
             if row > max_a:
                 max_a = row
             if col > max_b:
@@ -286,18 +290,18 @@ class Workbook():
         # check if the sheet already has a cell, if not create one
         sheet_upper = sheet_name.upper()
         if not self._location_exists(sheet_name, loc):
-            self._sheets[sheet_upper][loc.upper()] = _Cell(self.workbook, sheet_name, loc)
+            self.sheets[sheet_upper][loc.upper()] = _Cell(self.workbook, sheet_name, loc)
         else:
-            self._graph.remove_node(self._sheets[sheet_upper][loc.upper()])
+            self._graph.remove_node(self.sheets[sheet_upper][loc.upper()])
             for _, cells in self._missing_sheets.items():
-                if self._sheets[sheet_upper][loc.upper()] in cells:
-                    cells.remove(self._sheets[sheet_upper][loc.upper()])
+                if self.sheets[sheet_upper][loc.upper()] in cells:
+                    cells.remove(self.sheets[sheet_upper][loc.upper()])
 
         # update the cell contents
-        old_val = self._sheets[sheet_upper][loc.upper()].get_value()
-        self._sheets[sheet_upper][loc.upper()].set_contents(contents)
-        self._sheets[sheet_upper][loc.upper()].update_value()
-        if old_val != self._sheets[sheet_upper][loc.upper()].get_value():
+        old_val = self.sheets[sheet_upper][loc.upper()].get_value()
+        self.sheets[sheet_upper][loc.upper()].set_contents(contents)
+        self.sheets[sheet_upper][loc.upper()].update_value()
+        if old_val != self.sheets[sheet_upper][loc.upper()].get_value():
             self.changed_cells.append((sheet_name, loc))
 
     # set the cell of the given location to the given contents
@@ -306,14 +310,16 @@ class Workbook():
         Set the cell of the given location to the given contents
         '''
         self._set_cell_contents(sheet_name, loc, contents)
-        cell = self._sheets[sheet_name.upper()][loc.upper()]
+        cell = self.sheets[sheet_name.upper()][loc.upper()]
         self._check_for_loop()
         self._update_references([cell])
         self._call_notification()
         self._update_sheet_extent(sheet_name.upper(), cell)
 
-    # return the cell object at a particular location
-    def _add_dependency(self, src_cell: _Cell, loc: str, sheet_name: str) -> None:
+    def add_dependency(self, src_cell: _Cell, loc: str, sheet_name: str) -> None:
+        '''
+        return the cell object at a particular location
+        '''
         sheet_upper = sheet_name.upper()
         if not self._sheet_name_exists(sheet_name):
             if sheet_upper not in self._missing_sheets:
@@ -325,8 +331,8 @@ class Workbook():
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, loc):
             blank_cell = _Cell(self.workbook, sheet_name, loc)
-            self._sheets[sheet_upper][loc.upper()] = blank_cell
-        dest_cell = self._sheets[sheet_upper][loc.upper()]
+            self.sheets[sheet_upper][loc.upper()] = blank_cell
+        dest_cell = self.sheets[sheet_upper][loc.upper()]
         self._graph.add_edge(src_cell, dest_cell)
 
     # return the contents of the cell at the given location
@@ -340,7 +346,7 @@ class Workbook():
             raise ValueError
         if not self._location_exists(sheet_name, loc):
             return None
-        return self._sheets[sheet_name.upper()][loc.upper()].get_contents()
+        return self.sheets[sheet_name.upper()][loc.upper()].get_contents()
 
     # return the value of the cell at the given location
     def get_cell_value(self, sheet_name: str, location: str):
@@ -354,7 +360,7 @@ class Workbook():
             raise ValueError
         if not self._location_exists(sheet_name, location):
             return None
-        return self._sheets[sheet_name.upper()][location.upper()].get_value()
+        return self.sheets[sheet_name.upper()][location.upper()].get_value()
 
     def rename_sheet(self, sheet_name: str, new_name: str):
         '''
@@ -377,17 +383,17 @@ class Workbook():
         self._display_sheets[new_name.upper()] = new_name
         extent = self._extents.pop(sheet_name.upper())
         self._extents[new_name.upper()] = extent
-        loc_cells = self._sheets.pop(sheet_name.upper())
-        self._sheets[new_name.upper()] = {}
+        loc_cells = self.sheets.pop(sheet_name.upper())
+        self.sheets[new_name.upper()] = {}
 
         # Change the sheet name value within the cells of the sheet
         while loc_cells:
             loc, cell = loc_cells.popitem()
             cell.sheet_name = new_name
-            self._sheets[new_name.upper()][loc.upper()] = cell
+            self.sheets[new_name.upper()][loc.upper()] = cell
 
         # Change the sheet name references in formulas
-        cells = list(self._sheets[new_name.upper()].values())
+        cells = list(self.sheets[new_name.upper()].values())
         direct_refs = self._graph.direct_refs(cells)
         new_ref = new_name
         if ' ' in new_name:
@@ -420,7 +426,7 @@ class Workbook():
         '''
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
-        sheet = self._sheets[sheet_name.upper()]
+        sheet = self.sheets[sheet_name.upper()]
         copy_name = self._display_sheets[sheet_name.upper()]
         num = 1
         while (self._sheet_name_exists(copy_name + "_" + str(num))):
@@ -450,8 +456,8 @@ class Workbook():
         contents = {}
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
-                old_location = self._tuple_to_loc(i, j)
-                start_cell = self._sheets[sheet_name.upper()][old_location.upper()]
+                old_location = self.tuple_to_loc(i, j)
+                start_cell = self.sheets[sheet_name.upper()][old_location.upper()]
                 contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
                 self.set_cell_contents(sheet_name, old_location, None)
         return contents
@@ -473,19 +479,19 @@ class Workbook():
             to_location, to_sheet)
 
         min_location = min(start_location, end_location)
-        x_diff = self._loc_to_tuple(to_location)[0] - self._loc_to_tuple(min_location)[0]
-        y_diff = self._loc_to_tuple(to_location)[1] - self._loc_to_tuple(min_location)[1]
+        x_diff = self.loc_to_tuple(to_location)[0] - self.loc_to_tuple(min_location)[0]
+        y_diff = self.loc_to_tuple(to_location)[1] - self.loc_to_tuple(min_location)[1]
 
-        x_1, y_1 = self._loc_to_tuple(start_location)
-        x_2, y_2 = self._loc_to_tuple(end_location)
+        x_1, y_1 = self.loc_to_tuple(start_location)
+        x_2, y_2 = self.loc_to_tuple(end_location)
 
         contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff, 
             sheet_name, to_sheet)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
-                old_location = self._tuple_to_loc(i, j)
-                new_location = self._tuple_to_loc(i + x_diff, j + y_diff)
+                old_location = self.tuple_to_loc(i, j)
+                new_location = self.tuple_to_loc(i + x_diff, j + y_diff)
                 self.set_cell_contents(to_sheet, new_location, contents[old_location])
 
     # pylint: disable=R0913
@@ -505,17 +511,17 @@ class Workbook():
             to_location, to_sheet)
 
         min_location = min(start_location, end_location)
-        x_diff = self._loc_to_tuple(to_location)[0] - self._loc_to_tuple(min_location)[0]
-        y_diff = self._loc_to_tuple(to_location)[1] - self._loc_to_tuple(min_location)[1]
+        x_diff = self.loc_to_tuple(to_location)[0] - self.loc_to_tuple(min_location)[0]
+        y_diff = self.loc_to_tuple(to_location)[1] - self.loc_to_tuple(min_location)[1]
 
-        x_1, y_1 = self._loc_to_tuple(start_location)
-        x_2, y_2 = self._loc_to_tuple(end_location)
+        x_1, y_1 = self.loc_to_tuple(start_location)
+        x_2, y_2 = self.loc_to_tuple(end_location)
 
         contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff, 
             sheet_name, to_sheet)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
-                old_location = self._tuple_to_loc(i, j)
-                new_location = self._tuple_to_loc(i + x_diff, j + y_diff)
+                old_location = self.tuple_to_loc(i, j)
+                new_location = self.tuple_to_loc(i + x_diff, j + y_diff)
                 self.set_cell_contents(to_sheet, new_location, contents[old_location])
