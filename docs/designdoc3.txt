@@ -36,17 +36,22 @@ D1.  [3pts] Moving and copying regions of a sheet are very similar operations,
      with only a few differences between them.  How did your team take advantage
      of the similarity of these two operations to reduce the amount of code
      required to provide this functionality?
-     
+     We created several helper functions to reduce the overall amount of code, 
+     one to convert a location tuple to a string representing a cell location,
+     one to check the validity of the arguments, and one to select all the 
+     original cells' contents.
 
 D2.  [3pts] Similarly, moving/copying regions of a sheet, and renaming a sheet,
      both involve formula updates.  Was your team able to factor out common
      aspects of these two operations to reduce the amount of code required to
      implement these operations?  If so, what did you do?  If not, why not?
-
+     We chose to updating the formula in the cell module using a transformer,
+     so the same methods in the cell are used during the move and copy methods.  
 
 D3.  [3pts] How does your implementation address the challenges of moving or
      copying a region of cells where the source and target regions overlap?
-
+     We addressed this by first copying the original contents, then replacing
+     the necessary contents so the functionality is simple and clean.
 
 Static Code Analysis / Code Linting (16pts)
 -------------------------------------------
