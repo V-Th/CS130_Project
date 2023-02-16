@@ -81,7 +81,6 @@ class Workbook():
                 call_func(self, self.changed_cells)
             # A general exception is used to catch any exception that a
             # notification may throw
-            # pylint: disable=W0703
             except Exception:
                 continue
         self.changed_cells.clear()
@@ -171,8 +170,10 @@ class Workbook():
             return False
         return True
 
-    # Check missing sheets to update cells that may need it
     def _check_missing_sheets(self, sheet_name: str):
+        '''
+        Check missing sheets to update cells that may need it
+        '''
         sheet_upper = sheet_name.upper()
         if not sheet_upper in self._missing_sheets:
             return
@@ -432,6 +433,29 @@ class Workbook():
         self._check_missing_sheets(copy_name)
         return idx, copy_name
 
+    def _check_relative_location(self, sheet_name: str, start_location: str,
+            end_location: str, to_location: str, to_sheet):
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        if not self._location_exists(sheet_name, start_location):
+            raise KeyError
+        if not self._location_exists(sheet_name, end_location):
+            raise KeyError
+        if to_sheet is not None and not self._sheet_name_exists(to_sheet):
+            raise ValueError
+        if not self._is_valid_location(to_location):
+            raise ValueError
+        
+    def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff, sheet_name, to_sheet):
+        contents = {}
+        for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
+            for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
+                old_location = self._tuple_to_loc(i, j)
+                start_cell = self._sheets[sheet_name.upper()][old_location.upper()]
+                contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
+                self.set_cell_contents(sheet_name, old_location, None)
+        return contents
+
     # pylint: disable=R0913
     # pylint: disable=R0914
     def move_cells(self, sheet_name: str, start_location: str,
@@ -444,16 +468,9 @@ class Workbook():
         '''
         if to_sheet is None:
             to_sheet = sheet_name
-        if not self._sheet_name_exists(sheet_name):
-            raise KeyError
-        if not self._location_exists(sheet_name, start_location):
-            raise KeyError
-        if not self._location_exists(sheet_name, end_location):
-            raise KeyError
-        if to_sheet is not None and not self._sheet_name_exists(to_sheet):
-            raise ValueError
-        if not self._is_valid_location(to_location):
-            raise ValueError
+        
+        self._check_relative_location(sheet_name, start_location, end_location, 
+            to_location, to_sheet)
 
         min_location = min(start_location, end_location)
         x_diff = self._loc_to_tuple(to_location)[0] - self._loc_to_tuple(min_location)[0]
@@ -462,14 +479,8 @@ class Workbook():
         x_1, y_1 = self._loc_to_tuple(start_location)
         x_2, y_2 = self._loc_to_tuple(end_location)
 
-        contents = {}
-
-        for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
-            for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
-                old_location = self._tuple_to_loc(i, j)
-                start_cell = self._sheets[sheet_name.upper()][old_location.upper()]
-                contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
-                self.set_cell_contents(sheet_name, old_location, None)
+        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff, 
+            sheet_name, to_sheet)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
@@ -489,16 +500,9 @@ class Workbook():
         '''
         if to_sheet is None:
             to_sheet = sheet_name
-        if not self._sheet_name_exists(sheet_name):
-            raise KeyError
-        if not self._location_exists(sheet_name, start_location):
-            raise KeyError
-        if not self._location_exists(sheet_name, end_location):
-            raise KeyError
-        if to_sheet is not None and not self._sheet_name_exists(to_sheet):
-            raise ValueError
-        if not self._is_valid_location(to_location):
-            raise ValueError
+        
+        self._check_relative_location(sheet_name, start_location, end_location, 
+            to_location, to_sheet)
 
         min_location = min(start_location, end_location)
         x_diff = self._loc_to_tuple(to_location)[0] - self._loc_to_tuple(min_location)[0]
@@ -507,13 +511,8 @@ class Workbook():
         x_1, y_1 = self._loc_to_tuple(start_location)
         x_2, y_2 = self._loc_to_tuple(end_location)
 
-        contents = {}
-
-        for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
-            for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
-                old_location = self._tuple_to_loc(i, j)
-                start_cell = self._sheets[sheet_name.upper()][old_location.upper()]
-                contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
+        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff, 
+            sheet_name, to_sheet)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
