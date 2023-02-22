@@ -1,19 +1,13 @@
 '''
-The cell module implements the Cell class that store cell value and contents 
+The cell module implements the Cell class that store cell value and contents
 and funcionality to parse formulas
 '''
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 import json
 import decimal
 import lark
 from lark.visitors import visit_children_decor
-# pylint: disable=W0401
-# pylint: disable=W0614
-from .cellerror import *
-# pylint: disable=W0401
-# pylint: disable=W0614
-from .cellerrortype import *
+from .cellerror import CellError
+from .cellerrortype import CellErrorType, str_to_error
 
 # Characters for sheetname that require quotes
 _REQUIRE_QUOTES = set(" .?!,:;!@#$%^&*()-")
@@ -54,8 +48,7 @@ class _Cell():
     def _is_number_or_string(self):
         try:
             self.value = decimal.Decimal(self.contents)
-        # pylint: disable=W0718
-        except Exception:
+        except decimal.DecimalException:
             self.value = self.contents
 
     def _eval_formula(self):
@@ -67,8 +60,7 @@ class _Cell():
         except AssertionError:
             detail = 'Bad reference to non-existent sheet'
             self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
-        # pylint: disable=W0718
-        except Exception:
+        except lark.exceptions.LarkError:
             detail = 'Cannot be parsed; please check input'
             self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
