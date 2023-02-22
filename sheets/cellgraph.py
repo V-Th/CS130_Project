@@ -63,9 +63,7 @@ class _CellGraph():
             if node in visited:
                 visited.remove(node)
             visited.append(node)
-            for child in self.graph[node]:
-                if child in self.sccs or child == node:
-                    continue
+            for child in self.graph[node]-self.sccs:
                 if child not in remaining:
                     remaining.append(child)
 
@@ -102,7 +100,11 @@ class _CellGraph():
                 self.in_stack[in_scc] = False
             if len(scc) > 1:
                 self.sccs.update(scc)
-            scc.clear()
+                scc.clear()
+            else:
+                cell = scc.pop()
+                if cell in self.graph[cell]:
+                    self.sccs.add(cell)
         if parent is not None:
             self.low[parent] = min(self.low[parent], self.low[child])
 
