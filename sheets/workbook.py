@@ -492,8 +492,8 @@ class Workbook():
         '''
         if to_sheet is None:
             to_sheet = sheet_name
-        
-        self._check_relative_location(sheet_name, start_location, end_location, 
+
+        self._check_relative_location(sheet_name, start_location, end_location,
             to_location, to_sheet)
 
         min_location = min(start_location, end_location)
@@ -503,7 +503,7 @@ class Workbook():
         x_1, y_1 = self.loc_to_tuple(start_location)
         x_2, y_2 = self.loc_to_tuple(end_location)
 
-        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff, 
+        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
             sheet_name, to_sheet)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
@@ -524,8 +524,8 @@ class Workbook():
         '''
         if to_sheet is None:
             to_sheet = sheet_name
-        
-        self._check_relative_location(sheet_name, start_location, end_location, 
+
+        self._check_relative_location(sheet_name, start_location, end_location,
             to_location, to_sheet)
 
         min_location = min(start_location, end_location)
@@ -535,7 +535,7 @@ class Workbook():
         x_1, y_1 = self.loc_to_tuple(start_location)
         x_2, y_2 = self.loc_to_tuple(end_location)
 
-        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff, 
+        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
             sheet_name, to_sheet)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
