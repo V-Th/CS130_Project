@@ -184,6 +184,7 @@ class Workbook():
             return
         for cell in self._missing_sheets[sheet_upper]:
             old_val = cell.get_value()
+            cell.update_dependencies()
             cell.update_value()
             if old_val == cell.get_value():
                 continue
@@ -281,7 +282,7 @@ class Workbook():
         # for those in SCC sets with other, set CIRCREF error
         cells_in_loop = []
         for cell in self._graph.nodes:
-            if cell in self._graph.sccs or cell in self._graph.graph[cell]:
+            if cell in self._graph.sccs:
                 old_value = cell.value
                 cells_in_loop.append(cell)
                 err_str = "Circular reference detected"
@@ -462,7 +463,7 @@ class Workbook():
             raise ValueError
         if not self._is_valid_location(to_location):
             raise ValueError
-        
+
     def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff, sheet_name, to_sheet):
         contents = {}
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):

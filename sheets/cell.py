@@ -36,14 +36,12 @@ class _Cell():
         return json.dumps(self.contents)
 
     def _is_error(self):
-        try:
-            err_type = str_to_error(self.contents.upper())
-            detail = f"Written error: {self.contents.upper()}"
-            self.value = CellError(err_type, detail)
-            return True
-        # pylint: disable=W0703
-        except Exception:
+        err_type = str_to_error(self.contents.upper())
+        if err_type is None:
             return False
+        detail = f"Written error: {self.contents.upper()}"
+        self.value = CellError(err_type, detail)
+        return True
 
     def _is_number_or_string(self):
         try:
@@ -54,15 +52,15 @@ class _Cell():
     def _eval_formula(self):
         evaluator = FormulaEvaluator(self.workbook, self.sheet_name, self)
         try:
-            self.value =  evaluator.visit(self.tree)
+            self.value = evaluator.visit(self.tree)
             if self.value is None:
                 self.value = decimal.Decimal()
         except AssertionError:
             detail = 'Bad reference to non-existent sheet'
             self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
-        except lark.exceptions.LarkError:
-            detail = 'Cannot be parsed; please check input'
-            self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+        # except lark.exceptions.LarkError:
+        #     detail = 'Cannot be parsed; please check input'
+        #     self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
     def update_value(self):
         '''
@@ -78,6 +76,13 @@ class _Cell():
             if not self._is_error():
                 self._is_number_or_string()
 
+    def update_dependencies(self):
+        '''
+        Adds dependencies to the graph
+        '''
+        add_to_graph = AddDependencies(self.workbook, self.sheet_name, self)
+        add_to_graph.visit(self.tree)
+
     def set_contents(self, contents: str):
         '''
         set contents as given string and update its value
@@ -85,16 +90,18 @@ class _Cell():
         '''
         if contents is None:
             self.contents = None
+            return
         elif not contents.strip():
             self.contents = None
-        else:
-            self.contents = contents.strip()
-            if self.contents[0] == '=':
-                try:
-                    self.tree = parser.parse(self.contents)
-                except lark.exceptions.LarkError:
-                    detail = 'Cannot be parsed; please check input'
-                    self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+            return
+        self.contents = contents.strip()
+        if self.contents[0] == '=':
+            try:
+                self.tree = parser.parse(self.contents)
+                self.update_dependencies()
+            except lark.exceptions.LarkError:
+                detail = 'Cannot be parsed; please check input'
+                self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
     def get_contents(self):
         '''
@@ -110,7 +117,7 @@ class _Cell():
 
     def rename_sheet(self, new_name, old_name):
         '''
-        rename sheet referenced by cell contents 
+        rename sheet referenced by cell contents
         '''
         evaluator = SheetNameManipulation(new_name, old_name)
         parsed = parser.parse(self.contents)
@@ -167,6 +174,33 @@ def convert_str(value):
     else:
         return str(value)
 
+class AddDependencies(lark.visitors.Interpreter):
+    '''
+    Add the dependencies of the cell to the cellgraph
+    '''
+    def __init__(self, workbook, sheet_name, this_cell: _Cell):
+        self.workbook = workbook
+        self.sheet = sheet_name
+        self.this_cell = this_cell
+
+    def cell(self, tree):
+        '''
+        Adds the cell references to the dependencies
+        '''
+        try:
+            if len(tree.children) == 1:
+                cellref = tree.children[0].replace('$', '')
+                self.workbook.add_dependency(self.this_cell, cellref, self.sheet)
+            else:
+                sheet_name = tree.children[0]
+                if sheet_name[0] == '\'':
+                    sheet_name = sheet_name[1:-1]
+                cellref = tree.children[1].replace('$', '')
+                self.workbook.add_dependency(self.this_cell, cellref, sheet_name)
+        except AssertionError:
+            # Ignore the assert errors and keep adding the references to the graph
+            return
+
 class FormulaEvaluator(lark.visitors.Interpreter):
     '''
     parse value of cell formulas
@@ -179,7 +213,7 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     @visit_children_decor
     def add_expr(self, values):
         '''
-        evaluate an addition expressions 
+        evaluate an addition expressions
         '''
         check = check_inputs(values[0], values[2])
         if isinstance(check, CellError):
@@ -195,7 +229,7 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     @visit_children_decor
     def mul_expr(self, values):
         '''
-        evaluate a multiplication expression 
+        evaluate a multiplication expression
         '''
         check = check_inputs(values[0], values[2])
         if isinstance(check, CellError):
@@ -216,7 +250,7 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     @visit_children_decor
     def concat_expr(self, values):
         '''
-        evaluate a concatenation expression 
+        evaluate a concatenation expression
         '''
         try:
             v_1 = convert_str(values[0])
@@ -278,18 +312,20 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         '''
         return value of cell refrenced in formula
         '''
-        if len(tree.children) == 1:
-            cellref = tree.children[0].replace('$', '')
-            self.workbook.add_dependency(self.this_cell, cellref, self.sheet)
-            other_cell = self.workbook.sheets[self.sheet.upper()][cellref.upper()].get_value()
-        else:
-            sheet_name = tree.children[0]
-            if sheet_name[0] == '\'':
-                sheet_name = sheet_name[1:-1]
-            cellref = tree.children[1].replace('$', '')
-            self.workbook.add_dependency(self.this_cell, cellref, sheet_name)
-            other_cell = self.workbook.sheets[sheet_name.upper()][cellref.upper()].get_value()
-        return other_cell
+        try:
+            if len(tree.children) == 1:
+                cellref = tree.children[0].replace('$', '').upper()
+                cell_val = self.workbook.sheets[self.sheet.upper()][cellref].get_value()
+            else:
+                sheet_name = tree.children[0]
+                if sheet_name[0] == '\'':
+                    sheet_name = sheet_name[1:-1]
+                cellref = tree.children[1].replace('$', '').upper()
+                cell_val = self.workbook.sheets[sheet_name.upper()][cellref].get_value()
+            return cell_val
+        except KeyError:
+            detail = 'Bad reference to non-existent sheet: '+sheet_name
+            return CellError(CellErrorType.BAD_REFERENCE, detail)
 
 class SheetNameManipulation(lark.Transformer):
     '''
@@ -407,7 +443,7 @@ class CellrefManipulation(lark.Transformer):
         return given number
         '''
         return values[0]
- 
+
     def string(self, values):
         '''
         return given string

@@ -43,10 +43,14 @@ def error_to_str(str_error):
     '''
     Converts an error to its message string.
     '''
-    return _ERROR_STR[str_error]
+    if str_error in _ERROR_STR:
+        return _ERROR_STR[str_error]
+    return None
 
 def str_to_error(error_str):
     '''
     Converts a message string to its error.
     '''
-    return _STR_ERROR[error_str]
+    if error_str in _STR_ERROR:
+        return _STR_ERROR[error_str]
+    return None
