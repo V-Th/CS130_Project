@@ -12,6 +12,32 @@ from .cellerrortype import CellErrorType, str_to_error
 # Characters for sheetname that require quotes
 _REQUIRE_QUOTES = set(" .?!,:;!@#$%^&*()-")
 
+# Comparsion of two differing types
+_TYPE_VALUE = {
+    bool: 2,
+    str: 1,
+    decimal.Decimal: 0
+}
+
+# Comparison-Empty Cell conversion
+_COMPARISON_EMPTY_CELL = {
+    str: "",
+    decimal.Decimal: decimal.Decimal(),
+    bool: False
+}
+
+# Comparison lambda operations
+_COMPARISON_LAMBDAS = {
+    "=": lambda a, b: a == b,
+    "==": lambda a, b: a == b,
+    "<>": lambda a, b: a != b,
+    "!=": lambda a, b: a != b,
+    ">": lambda a, b: a > b,
+    "<": lambda a, b: a < b,
+    ">=": lambda a, b: a >= b,
+    "<=": lambda a, b: a <= b,
+}
+
 # Parser for cell contents
 parser = lark.Lark.open('formulas.lark', rel_to=__file__, start='formula')
 
@@ -43,6 +69,16 @@ class _Cell():
         self.value = CellError(err_type, detail)
         return True
 
+    def _is_boolean(self):
+        contents_upper = self.contents.upper()
+        if contents_upper == 'TRUE':
+            self.value = True
+            return True
+        if contents_upper == 'FALSE':
+            self.value = False
+            return True
+        return False
+
     def _is_number_or_string(self):
         try:
             self.value = decimal.Decimal(self.contents)
@@ -58,9 +94,6 @@ class _Cell():
         except AssertionError:
             detail = 'Bad reference to non-existent sheet'
             self.value = CellError(CellErrorType.BAD_REFERENCE, detail)
-        # except lark.exceptions.LarkError:
-        #     detail = 'Cannot be parsed; please check input'
-        #     self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
     def update_value(self):
         '''
@@ -73,8 +106,11 @@ class _Cell():
         elif self.contents[0] == '\'':
             self.value = self.contents[1:]
         else:
-            if not self._is_error():
-                self._is_number_or_string()
+            if self._is_error():
+                return
+            if self._is_boolean():
+                return
+            self._is_number_or_string()
 
     def update_dependencies(self):
         '''
@@ -91,7 +127,7 @@ class _Cell():
         if contents is None:
             self.contents = None
             return
-        elif not contents.strip():
+        if not contents.strip():
             self.contents = None
             return
         self.contents = contents.strip()
@@ -142,7 +178,7 @@ def check_arithmetic_input(value):
     '''
     if isinstance(value, (decimal.Decimal, CellError)):
         return value
-    elif value is None:
+    if value is None:
         return decimal.Decimal()
     try:
         return decimal.Decimal(value)
@@ -158,10 +194,9 @@ def check_inputs(value1, value2):
     check_v2 = check_arithmetic_input(value2)
     if isinstance(check_v1, CellError):
         return check_v1
-    elif isinstance(check_v2, CellError):
+    if isinstance(check_v2, CellError):
         return check_v2
-    else:
-        return check_v1, check_v2
+    return check_v1, check_v2
 
 def convert_str(value):
     '''
@@ -169,10 +204,57 @@ def convert_str(value):
     '''
     if value is None:
         return ''
-    elif isinstance(value, CellError):
+    if isinstance(value, CellError):
         return value
-    else:
-        return str(value)
+    if isinstance(value, bool):
+        return str(value).upper()
+    return str(value)
+
+def check_boolean_input(value):
+    '''
+    Performs implicit conversions to boolean or returns type error
+    '''
+    if isinstance(value, (bool, CellError)):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, str):
+        if value.upper() == "TRUE":
+            return True
+        if value.upper() == "FALSE":
+            return False
+        detail = "String cannot be converted to Boolean"
+        return CellError(CellErrorType(5), detail)
+    return bool(value)
+
+def check_boolean_inputs(value1, value2):
+    '''
+    Validates the two inputs of an boolean expression
+    '''
+    check_v1 = check_boolean_input(value1)
+    check_v2 = check_boolean_input(value2)
+    if isinstance(check_v1, CellError):
+        return check_v1
+    if isinstance(check_v2, CellError):
+        return check_v2
+    return check_v1, check_v2
+
+def compare_op(value1, value2, operator):
+    '''
+    operator should be a lambda expression
+    Performs comparison: value1 > value2
+    '''
+    if isinstance(value1, CellError):
+        return value1
+    if isinstance(value2, CellError):
+        return value2
+    if isinstance(value1, type(value2)):
+        if isinstance(value1, str):
+            return operator(value1.lower(), value2.lower())
+        return operator(value1, value2)
+    type_val1 = _TYPE_VALUE[type(value1)]
+    type_val2 = _TYPE_VALUE[type(value2)]
+    return operator(type_val1, type_val2)
 
 class AddDependencies(lark.visitors.Interpreter):
     '''
@@ -223,8 +305,7 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             return v_1 + v_2
         if values[1] == '-':
             return v_1 - v_2
-        else:
-            assert False, 'Unexpected operator: ' + values[1]
+        assert False, 'Unexpected operator: ' + values[1]
 
     @visit_children_decor
     def mul_expr(self, values):
@@ -237,15 +318,13 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         v_1, v_2 = check
         if values[1] == '*':
             return v_1 * v_2
-        elif values[1] == '/':
+        if values[1] == '/':
             try:
                 return v_1 / v_2
-            # pylint: disable=W0703
-            except Exception as err:
+            except ZeroDivisionError as err:
                 detail = "Cannot divide by 0"
                 return CellError(CellErrorType.DIVIDE_BY_ZERO, detail, err)
-        else:
-            assert False, 'Unexpected operator: ' + values[1]
+        assert False, 'Unexpected operator: ' + values[1]
 
     @visit_children_decor
     def concat_expr(self, values):
@@ -276,10 +355,24 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             return val
         if values[0] == '+':
             return val
-        elif values[0] == '-':
+        if values[0] == '-':
             return 0 - val
-        else:
-            assert False, 'Unexpected operator: ' + values[0]
+        assert False, 'Unexpected operator: ' + values[0]
+
+    @visit_children_decor
+    def compare_expr(self, values):
+        '''
+        Evaluate a comparison expression
+        '''
+        if values[0] is None and values[2] is None:
+            values[0] = decimal.Decimal()
+            values[2] = decimal.Decimal()
+        if values[0] is None:
+            values[0] = _COMPARISON_EMPTY_CELL[type(values[0])]
+        if values[2] is None:
+            values[2] = _COMPARISON_EMPTY_CELL[type(values[2])]
+        operator = _COMPARISON_LAMBDAS[values[1]]
+        return compare_op(values[0], values[2], operator)
 
     def error(self, tree):
         '''
@@ -295,6 +388,12 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         if '.' in num:
             num = num.rstrip('0').rstrip('.')
         return decimal.Decimal(num)
+
+    def boolean(self, tree):
+        '''
+        Return Boolean value
+        '''
+        return tree.children[0].upper() == 'TRUE'
 
     def string(self, tree):
         '''
