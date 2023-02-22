@@ -246,27 +246,30 @@ class Workbook():
             return self._extents[sheet_name.upper()]
         raise KeyError
 
+    def _search_for_extent(self, sheet_upper: str):
+        max_a, max_b = 0, 0
+        for loc in self.sheets[sheet_upper].keys():
+            content = self.sheets[sheet_upper][loc.upper()].get_contents()
+            if content is None:
+                continue
+            row, col = self.loc_to_tuple(loc)
+            if row > max_a:
+                max_a = row
+            if col > max_b:
+                max_b = col
+        return (max_a, max_b)
+
     # when a spreadsheet is added or deleted, update the extent of that sheet
     def _update_sheet_extent(self, sheet_name: str, cell: _Cell) -> None:
         sheet_upper = sheet_name.upper()
         if not self._sheet_name_exists(sheet_name):
             return
         if cell is None:
-            self._extents[sheet_upper] = (0, 0)
-            return
-        if cell.get_contents() is None:
+            max_a, max_b = self._search_for_extent(sheet_upper)
+        elif cell.get_contents() is None:
             if self.loc_to_tuple(cell.location) != self._extents[sheet_upper]:
                 return
-            max_a, max_b = 0, 0
-            for loc in self.sheets[sheet_upper].keys():
-                content = self.sheets[sheet_upper][loc.upper()].get_contents()
-                if content is None:
-                    continue
-                row, col = self.loc_to_tuple(loc)
-                if row > max_a:
-                    max_a = row
-                if col > max_b:
-                    max_b = col
+            max_a, max_b = self._search_for_extent(sheet_upper)
         elif cell.get_contents():
             max_a, max_b = self._extents[sheet_upper]
             row, col = self.loc_to_tuple(cell.location)
@@ -447,7 +450,10 @@ class Workbook():
         idx, copy_name = self.new_sheet(copy_name)
         for loc, cell in sheet.items():
             self._set_cell_contents(copy_name, loc, cell.get_contents())
+        changed_cells = self._check_for_loop()
+        self._update_references(changed_cells)
         self._call_notification()
+        self._update_sheet_extent(copy_name.upper(), None)
         self._check_missing_sheets(copy_name)
         return idx, copy_name
 
