@@ -1,3 +1,4 @@
+# pylint: skip-file
 import context
 import unittest
 import decimal
@@ -54,6 +55,12 @@ class TestMethods(unittest.TestCase):
         self.wb.set_cell_contents(self.s1, 'a1', '=\'Test\'!a1 + \'Test\'!a2 + Rename!a1')
         self.wb.rename_sheet("rename", 'Complete')
         self.assertEqual(self.wb.get_cell_contents(self.s1, 'a1'), '= Test!a1 + Test!a2 + Complete!a1')
+
+    def test_extent(self):
+        self.wb.set_cell_contents(self.s1, 'c3', '1')
+        self.assertEqual(self.wb.get_sheet_extent(self.s1), (3, 3))
+        self.wb.set_cell_contents(self.s1, 'a1', '1')
+        self.assertEqual(self.wb.get_sheet_extent(self.s1), (3, 3))
 
 if __name__ == '__main__':
     unittest.main()
