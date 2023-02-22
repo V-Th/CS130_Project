@@ -1,3 +1,4 @@
+# pylint: skip-file
 import context
 import string
 import cProfile, pstats, io
@@ -22,33 +23,33 @@ def chain_refs():
     # Set up
     wb = Workbook()
     _, name = wb.new_sheet()
-    for i in range(1, 300):
+    for i in range(1, 1000):
         wb.set_cell_contents(name, 'A'+str(i), '=A' + str(i+1))
 
     # Code to run performance test on
-    exec = lambda : wb.set_cell_contents(name, 'A300', '10')
+    exec = lambda : wb.set_cell_contents(name, 'A1000', '10')
     performance_run(exec, "Long Chain Update")
 
 def one_ref_for_all():
     # Set Up
     wb = Workbook()
     _, name = wb.new_sheet()
-    for i in range(1, 100):
-        wb.set_cell_contents(name, 'A'+str(i), '=A100')
+    for i in range(1, 1000):
+        wb.set_cell_contents(name, 'A'+str(i), '=A1000')
 
     # Code to run performance test on
-    exec = lambda : wb.set_cell_contents(name, 'A100', '10')
+    exec = lambda : wb.set_cell_contents(name, 'A1000', '10')
     performance_run(exec, "Several Short Updates")
 
 def long_loop():
     # Set Up
     wb = Workbook()
     _, name = wb.new_sheet()
-    for i in range(1, 300):
+    for i in range(1, 1000):
         wb.set_cell_contents(name, 'A'+str(i), '=A' + str(i+1))
 
     # Code to run performance test on
-    exec = lambda : wb.set_cell_contents(name, 'A300', '=A1')
+    exec = lambda : wb.set_cell_contents(name, 'A1000', '=A1')
     performance_run(exec, "Long Chain Cycle")
 
 def m_by_n_update():
@@ -57,12 +58,12 @@ def m_by_n_update():
     _, name = wb.new_sheet()
     for j in range(10):
         char = string.ascii_uppercase[j]
-        for i in range(1, 30):
+        for i in range(1, 100):
             wb.set_cell_contents(name, char+str(i), '='+char+str(i+1))
-        wb.set_cell_contents(name, char+'30', '='+string.ascii_uppercase[j+1]+'1')
+        wb.set_cell_contents(name, char+'100', '='+string.ascii_uppercase[j+1]+'1')
 
     # Code to run performance test on
-    exec = lambda : wb.set_cell_contents(name, 'J30', '10')
+    exec = lambda : wb.set_cell_contents(name, 'J100', '10')
     performance_run(exec, "M by N Update")
 
 def m_by_n_cycle():
@@ -71,25 +72,24 @@ def m_by_n_cycle():
     _, name = wb.new_sheet()
     for j in range(10):
         char = string.ascii_uppercase[j]
-        for i in range(1, 30):
+        for i in range(1, 100):
             wb.set_cell_contents(name, char+str(i), '='+char+ str(i+1))
-        wb.set_cell_contents(name, char+'30', '='+string.ascii_uppercase[j+1]+'1')
+        wb.set_cell_contents(name, char+'100', '='+string.ascii_uppercase[j+1]+'1')
 
     # Code to run performance test on
-    exec = lambda : wb.set_cell_contents(name, 'J30', '=A1')
+    exec = lambda : wb.set_cell_contents(name, 'J100', '=A1')
     performance_run(exec, "M by N Cycle")
 
 def fib_benchmark():
     # Set up
     wb = Workbook()
     _, name = wb.new_sheet()
-    for i in range(1, 100):
+    for i in range(1, 1000):
         wb.set_cell_contents(name, 'A'+str(i), '=A'+str(i+1)+' + A'+str(i+2))
 
     # Code to run performance test on
-    exec = lambda : wb.set_cell_contents(name, 'A100', '1')
+    exec = lambda : wb.set_cell_contents(name, 'A1000', '1')
     performance_run(exec, "Fibonacci Benchmark")
-    print(wb.get_cell_value(name, 'A1'))
 
 def multi_loops():
     pr = cProfile.Profile()
@@ -155,7 +155,7 @@ def make_all_break_all():
     print(s.getvalue())
 
 chain_refs()
-one_ref_for_all()
+# one_ref_for_all()
 long_loop()
 m_by_n_update()
 m_by_n_cycle()
