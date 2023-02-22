@@ -81,6 +81,7 @@ class Workbook():
                 call_func(self, self.changed_cells)
             # A general exception is used to catch any exception that a
             # notification may throw
+            # pylint: disable=W0703
             except Exception:
                 continue
         self.changed_cells.clear()
@@ -213,11 +214,11 @@ class Workbook():
         ref_cells = []
         self._graph.bfs_nodes(cells, ref_cells)
         for cell in ref_cells:
+            if cell in original_set:
+                continue
             old_val = cell.get_value()
             cell.update_value()
             if old_val == cell.get_value():
-                continue
-            if cell in original_set:
                 continue
             self.changed_cells.append((cell.sheet_name, cell.location))
 
@@ -249,11 +250,13 @@ class Workbook():
         sheet_upper = sheet_name.upper()
         if not self._sheet_name_exists(sheet_name):
             return
-        max_a, max_b = 0, 0
         if cell is None:
-            self._extents[sheet_upper] = (max_a, max_b)
+            self._extents[sheet_upper] = (0, 0)
             return
         if cell.get_contents() is None:
+            if self.loc_to_tuple(cell.location) != self._extents[sheet_upper]:
+                return
+            max_a, max_b = 0, 0
             for loc in self.sheets[sheet_upper].keys():
                 content = self.sheets[sheet_upper][loc.upper()].get_contents()
                 if content is None:
@@ -264,6 +267,7 @@ class Workbook():
                 if col > max_b:
                     max_b = col
         elif cell.get_contents():
+            max_a, max_b = self._extents[sheet_upper]
             row, col = self.loc_to_tuple(cell.location)
             if row > max_a:
                 max_a = row
@@ -278,9 +282,12 @@ class Workbook():
         cells_in_loop = []
         for cell in self._graph.nodes:
             if cell in self._graph.sccs or cell in self._graph.graph[cell]:
+                old_value = cell.value
                 cells_in_loop.append(cell)
                 err_str = "Circular reference detected"
                 cell.value = CellError(CellErrorType(2), err_str)
+                if old_value != cell.value:
+                    self.changed_cells.append((cell.sheet_name, cell.location))
         return cells_in_loop
 
     # Internal call to add cells to sheet, avoids unnecessary checks
@@ -314,9 +321,9 @@ class Workbook():
         '''
         self._set_cell_contents(sheet_name, loc, contents)
         cell = self.sheets[sheet_name.upper()][loc.upper()]
-        loops = self._check_for_loop()
-        loops.append(cell)
-        self._update_references(loops)
+        cells_updated = [cell]
+        cells_updated.extend(self._check_for_loop())
+        self._update_references(cells_updated)
         self._call_notification()
         self._update_sheet_extent(sheet_name.upper(), cell)
 
