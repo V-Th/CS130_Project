@@ -104,7 +104,7 @@ class _CellGraph():
                 self.sccs.update(scc)
             scc.clear()
         if parent is not None:
-            self.low[parent] = min(self.low[parent], self.low[parent])
+            self.low[parent] = min(self.low[parent], self.low[child])
 
     def lazy_iter(self, parent_child, to_do):
         '''
