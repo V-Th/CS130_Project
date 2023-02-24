@@ -6,6 +6,7 @@ import json
 import decimal
 import lark
 from lark.visitors import visit_children_decor
+from .custom_func import DICTIONARY_FUNCTIONS
 from .cellerror import CellError
 from .cellerrortype import CellErrorType, str_to_error
 
@@ -45,11 +46,11 @@ class _Cell():
     # constructor
     def __init__(self, workbook, sheet_name: str, location: str):
         self.contents = None
+        self.tree = None
         self.value = None
         self.workbook = workbook
-        self.sheet_name = sheet_name
         self.location = location
-        self.tree = None
+        self.sheet_name = sheet_name
 
     def __repr__(self):
         return self.contents
@@ -210,35 +211,6 @@ def convert_str(value):
         return str(value).upper()
     return str(value)
 
-def check_boolean_input(value):
-    '''
-    Performs implicit conversions to boolean or returns type error
-    '''
-    if isinstance(value, (bool, CellError)):
-        return value
-    if value is None:
-        return False
-    if isinstance(value, str):
-        if value.upper() == "TRUE":
-            return True
-        if value.upper() == "FALSE":
-            return False
-        detail = "String cannot be converted to Boolean"
-        return CellError(CellErrorType(5), detail)
-    return bool(value)
-
-def check_boolean_inputs(value1, value2):
-    '''
-    Validates the two inputs of an boolean expression
-    '''
-    check_v1 = check_boolean_input(value1)
-    check_v2 = check_boolean_input(value2)
-    if isinstance(check_v1, CellError):
-        return check_v1
-    if isinstance(check_v2, CellError):
-        return check_v2
-    return check_v1, check_v2
-
 def compare_op(value1, value2, operator):
     '''
     operator should be a lambda expression
@@ -269,19 +241,15 @@ class AddDependencies(lark.visitors.Interpreter):
         '''
         Adds the cell references to the dependencies
         '''
-        try:
-            if len(tree.children) == 1:
-                cellref = tree.children[0].replace('$', '')
-                self.workbook.add_dependency(self.this_cell, cellref, self.sheet)
-            else:
-                sheet_name = tree.children[0]
-                if sheet_name[0] == '\'':
-                    sheet_name = sheet_name[1:-1]
-                cellref = tree.children[1].replace('$', '')
-                self.workbook.add_dependency(self.this_cell, cellref, sheet_name)
-        except AssertionError:
-            # Ignore the assert errors and keep adding the references to the graph
-            return
+        if len(tree.children) == 1:
+            cellref = tree.children[0].replace('$', '')
+            self.workbook.add_dependency(self.this_cell, cellref, self.sheet)
+        else:
+            sheet_name = tree.children[0]
+            if sheet_name[0] == '\'':
+                sheet_name = sheet_name[1:-1]
+            cellref = tree.children[1].replace('$', '')
+            self.workbook.add_dependency(self.this_cell, cellref, sheet_name)
 
 class FormulaEvaluator(lark.visitors.Interpreter):
     '''
@@ -374,11 +342,20 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         operator = _COMPARISON_LAMBDAS[values[1]]
         return compare_op(values[0], values[2], operator)
 
+    def function(self, tree):
+        '''
+        Evaluate a function
+        '''
+        function_name = tree.children[0]
+        custom_function = DICTIONARY_FUNCTIONS[function_name]
+        return custom_function(self, tree.children[1:])
+
     def error(self, tree):
         '''
         return CellError value
         '''
-        return CellError(str_to_error(tree.children[0].upper()), tree.children[0].upper())
+        error = str_to_error(tree.children[0].upper())
+        return CellError(error, tree.children[0].upper())
 
     def number(self, tree):
         '''
@@ -414,13 +391,15 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         try:
             if len(tree.children) == 1:
                 cellref = tree.children[0].replace('$', '').upper()
-                cell_val = self.workbook.sheets[self.sheet.upper()][cellref].get_value()
+                sheetref = self.sheet.upper()
+                cell_val = self.workbook.sheets[sheetref][cellref].get_value()
             else:
                 sheet_name = tree.children[0]
                 if sheet_name[0] == '\'':
                     sheet_name = sheet_name[1:-1]
                 cellref = tree.children[1].replace('$', '').upper()
-                cell_val = self.workbook.sheets[sheet_name.upper()][cellref].get_value()
+                sheetref = sheet_name.upper()
+                cell_val = self.workbook.sheets[sheetref][cellref].get_value()
             return cell_val
         except KeyError:
             detail = 'Bad reference to non-existent sheet: '+sheet_name
