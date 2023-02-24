@@ -340,8 +340,9 @@ class Workbook():
             if sheet_upper not in self._missing_sheets:
                 self._missing_sheets[sheet_upper] = []
             self._missing_sheets[sheet_upper].append(src_cell)
-            assert self._sheet_name_exists(sheet_name)
-        assert self._is_valid_location(loc.upper())
+            return
+        if not self._is_valid_location(loc.upper()):
+            return
 
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, loc):
