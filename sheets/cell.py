@@ -87,6 +87,10 @@ class _Cell():
             self.value = self.contents
 
     def _eval_formula(self):
+        if self.tree is None:
+            detail = 'Cannot be parsed; please check input'
+            self.value = CellError(CellErrorType.PARSE_ERROR, detail)
+            return
         evaluator = FormulaEvaluator(self.workbook, self.sheet_name, self)
         try:
             self.value = evaluator.visit(self.tree)
@@ -137,6 +141,7 @@ class _Cell():
                 self.tree = parser.parse(self.contents)
                 self.update_dependencies()
             except lark.exceptions.LarkError:
+                self.tree = None
                 detail = 'Cannot be parsed; please check input'
                 self.value = CellError(CellErrorType.PARSE_ERROR, detail)
 
@@ -159,6 +164,7 @@ class _Cell():
         evaluator = SheetNameManipulation(new_name, old_name)
         parsed = parser.parse(self.contents)
         self.contents = '= '+ evaluator.transform(parsed)
+        self.tree = parser.parse(self.contents)
 
     # given another location, compare to this cell's location
     # return contents with cell references adjusted accordingly
@@ -237,6 +243,22 @@ class AddDependencies(lark.visitors.Interpreter):
         self.sheet = sheet_name
         self.this_cell = this_cell
 
+    def function(self, tree):
+        '''
+        Ignore adding dependencies for certain functions
+        '''
+        custom_function = DICTIONARY_FUNCTIONS.get(tree.children[0])
+        if custom_function is None:
+            return
+        _, dynamic_dep = custom_function
+        if dynamic_dep:
+            self.visit(tree.children[1])
+            return
+        for child in tree.children[1:]:
+            if child is None:
+                break
+            self.visit(child)
+
     def cell(self, tree):
         '''
         Adds the cell references to the dependencies
@@ -255,7 +277,7 @@ class FormulaEvaluator(lark.visitors.Interpreter):
     '''
     parse value of cell formulas
     '''
-    def __init__(self, workbook, sheet_name, this_cell: _Cell):
+    def __init__(self, workbook, sheet_name, this_cell):
         self.workbook = workbook
         self.sheet = sheet_name
         self.this_cell = this_cell
@@ -299,19 +321,13 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         '''
         evaluate a concatenation expression
         '''
-        try:
-            v_1 = convert_str(values[0])
-            v_2 = convert_str(values[1])
-            if isinstance(v_1, CellError):
-                return v_1
-            elif isinstance(v_2, CellError):
-                return v_2
-            else:
-                return v_1 + v_2
-        # pylint: disable=W0703
-        except Exception:
-            return CellError(CellErrorType.PARSE_ERROR,
-                "Cannot parse inputs as strings for concatenation")
+        v_1 = convert_str(values[0])
+        v_2 = convert_str(values[1])
+        if isinstance(v_1, CellError):
+            return v_1
+        if isinstance(v_2, CellError):
+            return v_2
+        return v_1 + v_2
 
     @visit_children_decor
     def unary_op(self, values):
@@ -347,8 +363,15 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         Evaluate a function
         '''
         function_name = tree.children[0]
-        custom_function = DICTIONARY_FUNCTIONS[function_name]
-        return custom_function(self, tree.children[1:])
+        custom_function = DICTIONARY_FUNCTIONS.get(function_name)
+        if custom_function is None:
+            detail = "Function name is not recognized"
+            return CellError(CellErrorType.BAD_NAME, detail)
+        custom_func, dynamic_dep = custom_function
+        if not dynamic_dep:
+            return custom_func(self, tree.children[1:])
+        add_dep = AddDependencies(self.workbook, self.sheet, self.this_cell)
+        return custom_func(self, add_dep, tree.children[1:])
 
     def error(self, tree):
         '''
