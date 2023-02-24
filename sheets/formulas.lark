@@ -34,17 +34,19 @@
 ?compare_expr : (compare_expr COMPARE_OP)? base
 
 //========================================
+// Functions
+
+?function : FUNCTION_NAME "(" [(base | expression) ("," (base | expression))*] ")"
+
+//========================================
 // Base values
 
 ?base : cell
-      | function
       | ERROR_VALUE             -> error
       | NUMBER                  -> number
       | BOOLEAN                 -> boolean
       | STRING                  -> string
       | "(" expression ")"      -> parens
-
-function : FUNCTION_NAME "(" [base ("," base)*] ")"
 
 cell : (_sheetname "!")? CELLREF
 
