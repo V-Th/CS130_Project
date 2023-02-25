@@ -1,5 +1,6 @@
 # pylint: skip-file
 import context
+import decimal
 import unittest
 from sheets import *
 from sheets import version
@@ -246,6 +247,32 @@ class TestMethods(unittest.TestCase):
         a1_val = self.workbook.get_cell_value(self.s1, 'a1')
         self.assertIsInstance(a1_val, str)
         self.assertEqual(a1_val, str(version))
+
+    def test_indirect(self):
+        self.workbook.set_cell_contents(self.s1, 'a2', 'Phantasy')
+        self.workbook.set_cell_contents(self.s1, 'a1', '= INDIRECT(\"a2\")')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, str)
+        self.assertEqual(a1_val, "Phantasy")
+        self.workbook.set_cell_contents(self.s1, 'a2', 'Star')
+        self.workbook.set_cell_contents(self.s1, 'a1', '= INDIRECT(\"sheet1!a2\")')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, str)
+        self.assertEqual(a1_val, "Star")
+        self.workbook.set_cell_contents(self.s1, 'a2', 'Online')
+        self.workbook.set_cell_contents(self.s1, 'a1', '= INDIRECT(\"Sheet1!\"&\"a2\")')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, str)
+        self.assertEqual(a1_val, "Online")
+        self.workbook.set_cell_contents(self.s1, 'a2', '2')
+        self.workbook.set_cell_contents(self.s1, 'a1', '= INDIRECT(a2)')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, decimal.Decimal)
+        self.assertEqual(a1_val, decimal.Decimal(2))
+        self.workbook.set_cell_contents(self.s1, 'a2', '= a1')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.CIRCULAR_REFERENCE)
 
 if __name__ == '__main__':
     unittest.main()
