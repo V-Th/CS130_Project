@@ -13,6 +13,12 @@ class _CellGraph():
     def __init__(self):
         # stores dictionary of sets to store edges
         self.graph = defaultdict(set)
+        self.back = defaultdict(set)
+        # stores dictionary of sets to store dynamic dependencies that will
+        # reset the set of edges are added
+        self.dynamic = defaultdict(set)
+        # back edges of the dynamic dependencies
+        self.back_dynamic = defaultdict(set)
         # stores the nodes of the graph
         self.nodes = set()
         # disc is used to store discovery times of visited vertices
@@ -25,9 +31,10 @@ class _CellGraph():
         self.time = 0
         # in_stack is an array for faster check whether a node is in stack
         self.in_stack = {}
-        # setList and sccs is used to keep track of the list of stongly connected sets
+        # sccs is used to keep track of the list of stongly connected sets
         self.sccs = set()
-        # st is used to store all the connected ancestors (could be part of SCC)
+        # stack is used to store all the connected ancestors (could be part of
+        # SCC)
         self.stack = []
 
     # add edge between node1 and node2
@@ -38,8 +45,26 @@ class _CellGraph():
         Adds an edge between cells
         '''
         self.graph[node2].add(node1)
+        self.back[node1].add(node2)
         self.nodes.add(node1)
         self.nodes.add(node2)
+
+    def add_dynamic_dep(self, node1, node2):
+        '''
+        Adds a dynamic edge between cells
+        '''
+        self.dynamic[node2].add(node1)
+        self.back_dynamic[node1].add(node2)
+        self.nodes.add(node1)
+        self.nodes.add(node2)
+
+    def clear_dynamic_dep(self, node):
+        '''
+        Clears the dynamic edges currently stored
+        '''
+        for a_node in self.back_dynamic[node]:
+            self.dynamic[a_node].remove(node)
+        self.back_dynamic[node].clear()
 
     def direct_refs(self, nodes: list):
         '''
@@ -49,6 +74,36 @@ class _CellGraph():
         direct_refs = []
         for node in nodes:
             direct_refs.extend(self.graph[node])
+        return direct_refs
+
+    def get_children(self, node):
+        '''
+        Return the cells that are referencing the given cell
+        '''
+        return self.graph[node] | self.dynamic[node]
+
+    def has_dynamic_refs(self, cell):
+        '''
+        Return whether the cell has dynamic references
+        '''
+        return bool(self.back_dynamic.get(cell))
+
+    def dynamic_refs(self):
+        '''
+        Return the cells with dynamic dependencies
+        '''
+        return set().union(*self.dynamic.values())
+
+    def direct_refs_w_dynamic_refs(self, node):
+        '''
+        Returns list of direct references that have dynamic references and may
+        need to be updated
+        '''
+        dynamic_node = set().union(*self.dynamic.values())
+        direct_refs = []
+        for a_node in self.graph[node]:
+            if a_node in dynamic_node:
+                direct_refs.append(a_node)
         return direct_refs
 
     def bfs_nodes(self, remaining: list, visited: list):
@@ -63,7 +118,7 @@ class _CellGraph():
             if node in visited:
                 visited.remove(node)
             visited.append(node)
-            for child in self.graph[node]-self.sccs:
+            for child in (self.graph[node] | self.dynamic[node])-self.sccs:
                 if child not in remaining:
                     remaining.append(child)
 
@@ -72,9 +127,12 @@ class _CellGraph():
         '''
         Removes an edge between two cells.
         '''
-        for a_node in self.graph:
-            if node in self.graph[a_node]:
-                self.graph[a_node].remove(node)
+        for a_node in self.back[node]:
+            self.graph[a_node].remove(node)
+        self.back[node].clear()
+        for a_node in self.back_dynamic[node]:
+            self.dynamic[a_node].remove(node)
+        self.back_dynamic[node].clear()
         if node in self.nodes:
             self.nodes.remove(node)
         if node in self.disc:
@@ -124,7 +182,7 @@ class _CellGraph():
         # to_do list to which the children recursion are stacked on top of
         to_do.append((self.post_recursion, parent_child))
         # Go through all vertices adjacent to this
-        for g_child in self.graph[child]:
+        for g_child in self.graph[child] | self.dynamic[child]:
             # If v is not visited yet, then recur for it
             if self.disc[g_child] == -1:
                 # Add recursion on child to the to_do
@@ -157,3 +215,25 @@ class _CellGraph():
             while to_do:
                 recur, args = to_do.pop()
                 recur(args, to_do)
+
+    def particular_SCC(self, node):
+        '''
+        The SCC algorithm that finds all SCC's which are loops. It avoids the
+        recursion limit by having all recursion calls passed back to it so
+        that it may call them instead.
+        '''
+        self.time = 0
+        self.sccs.clear()
+        self.stack.clear()
+        for n in self.nodes:
+            self.disc[n] = -1
+            self.low[n] = -1
+            self.in_stack[n] = False
+
+        # A to_do list to perform recursions without creating frames
+        to_do = []
+        self.lazy_iter((None, node), to_do)
+        while to_do:
+            recur, args = to_do.pop()
+            recur(args, to_do)
+        return self.sccs.copy()
