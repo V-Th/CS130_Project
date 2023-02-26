@@ -1,6 +1,7 @@
 '''
 The functions module implements function calls with many arguments or none
 '''
+import decimal
 import lark
 import sheets
 from . import cell
@@ -163,12 +164,13 @@ def func_choose(evaluator, add_dep, args):
     if len(args) < 2:
         detail = "Not enough arguments for CHOOSE"
         return CellError(CellErrorType.TYPE_ERROR, detail)
-    index = evaluator.visit(args[0])
-    if index == 0 or index > len(args):
-        detail = "The index is out of bounds"
-        return CellError(CellErrorType.TYPE_ERROR, detail)
-    add_dep.visit(args[int(index)])
-    return evaluator.visit(args[int(index)])
+    index = cell.check_arithmetic_input(evaluator.visit(args[0]))
+    if isinstance(index, decimal.Decimal):
+        if 0 < index < len(args):
+            add_dep.visit(args[int(index)])
+            return evaluator.visit(args[int(index)])
+    detail = "The index is out of bounds"
+    return CellError(CellErrorType.TYPE_ERROR, detail)
 
 def func_isblank(evaluator, args):
     '''
