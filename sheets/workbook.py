@@ -210,6 +210,8 @@ class Workbook():
         self._check_missing_sheets(sheet_name)
         return (self.num_sheets()-1, sheet_name)
 
+    # Takes a list of cells who have been updated and updates their references
+    # Does NOT UPDATE the given cells
     def _update_references(self, cells: list):
         original_set = cells.copy()
         ref_cells = []
@@ -222,6 +224,58 @@ class Workbook():
             if old_val == cell.get_value():
                 continue
             self.changed_cells.append((cell.sheet_name, cell.location))
+
+    def _update_cells_in_loop(self, cell, sccs: set[_Cell]):
+        cells_to_update = []
+        for in_loop in sccs:
+            old_val = in_loop.get_value()
+            detail = "Circular reference detected"
+            in_loop.value = CellError(CellErrorType(2), detail)
+            if old_val != in_loop.get_value():
+                sheet_name = in_loop.sheet_name
+                loc = in_loop.location
+                self.changed_cells.append((sheet_name, loc))
+            for child in self._graph.get_children(in_loop) - sccs:
+                if child in cells_to_update:
+                    continue
+                cells_to_update.append(child)
+        self._update_cell_values(cell, cells_to_update, sccs)
+
+    def _update_cell_values(self, cell, cells_to_update: list[_Cell], sccs: set):
+        dynamic_refs = self._graph.dynamic_refs()
+        while cells_to_update:
+            to_update = cells_to_update.pop(0)
+            old_val = to_update.get_value()
+            to_update.update_value()
+            if self._graph.has_dynamic_refs(to_update):
+                dynamic_refs = self._graph.dynamic_refs()
+                sccs = self._graph.particular_SCC(cell)
+                if to_update in sccs:
+                    self._update_cells_in_loop(to_update, sccs)
+            if old_val != to_update.get_value():
+                sheet_name = to_update.sheet_name
+                loc = to_update.location
+                self.changed_cells.append((sheet_name, loc))
+            for child in self._graph.get_children(to_update):
+                if child in cells_to_update:
+                    continue
+                if child in sccs - dynamic_refs:
+                    continue
+                cells_to_update.append(child)
+                for g_child in self._graph.get_children(child):
+                    if g_child in cells_to_update:
+                        cells_to_update.remove(g_child)
+                        cells_to_update.append(g_child)
+
+    # Update given cell and all cells dependent on given cell
+    def _update_cell(self, cell: _Cell):
+        # Search for SCC's involved with given cell
+        sccs = self._graph.particular_SCC(cell)
+        # If the cell is in a SCC, then all cells touching it must be CIRCREF
+        if cell in sccs:
+            self._update_cells_in_loop(cell, sccs)
+        else:
+            self._update_cell_values(cell, [cell], sccs)
 
     def del_sheet(self, sheet_name: str) -> None:
         '''
@@ -311,12 +365,11 @@ class Workbook():
                 if self.sheets[sheet_upper][loc.upper()] in cells:
                     cells.remove(self.sheets[sheet_upper][loc.upper()])
 
-        # update the cell contents
-        old_val = self.sheets[sheet_upper][loc.upper()].get_value()
+        # old_val = self.sheets[sheet_upper][loc.upper()].get_value()
         self.sheets[sheet_upper][loc.upper()].set_contents(contents)
-        self.sheets[sheet_upper][loc.upper()].update_value()
-        if old_val != self.sheets[sheet_upper][loc.upper()].get_value():
-            self.changed_cells.append((sheet_name, loc))
+        # self.sheets[sheet_upper][loc.upper()].update_value()
+        # if old_val != self.sheets[sheet_upper][loc.upper()].get_value():
+        #     self.changed_cells.append((sheet_name, loc))
 
     # set the cell of the given location to the given contents
     def set_cell_contents(self, sheet_name: str, loc: str, contents:str) -> None:
@@ -325,31 +378,57 @@ class Workbook():
         '''
         self._set_cell_contents(sheet_name, loc, contents)
         cell = self.sheets[sheet_name.upper()][loc.upper()]
-        cells_updated = [cell]
-        cells_updated.extend(self._check_for_loop())
-        self._update_references(cells_updated)
+        # self._update_refs_w_dynamic_refs(cell)
+        # cells_updated = [cell]
+        # cells_updated.extend(self._check_for_loop())
+        # self._update_references(cells_updated)
+        self._update_cell(cell)
         self._call_notification()
         self._update_sheet_extent(sheet_name.upper(), cell)
 
-    def add_dependency(self, src_cell: _Cell, loc: str, sheet_name: str) -> None:
+    def find_dest_cell(self, src_cell: _Cell, loc: str, sheet_name: str):
         '''
-        return the cell object at a particular location
+        Find the destination cell that the src_cell is trying to reference
+        Store in missing sheet if the sheet does not yet exist
         '''
         sheet_upper = sheet_name.upper()
         if not self._sheet_name_exists(sheet_name):
             if sheet_upper not in self._missing_sheets:
                 self._missing_sheets[sheet_upper] = []
             self._missing_sheets[sheet_upper].append(src_cell)
-            return
+            return None
         if not self._is_valid_location(loc.upper()):
-            return
+            return None
 
         # check if the sheet already has a cell, if not create one
         if not self._location_exists(sheet_name, loc):
             blank_cell = _Cell(self.workbook, sheet_name, loc)
             self.sheets[sheet_upper][loc.upper()] = blank_cell
-        dest_cell = self.sheets[sheet_upper][loc.upper()]
+        return self.sheets[sheet_upper][loc.upper()]
+
+    def add_dependency(self, src_cell: _Cell, loc: str, sheet_name: str) -> None:
+        '''
+        Add dependency between cells in graph
+        '''
+        dest_cell = self.find_dest_cell(src_cell, loc, sheet_name)
+        if dest_cell is None:
+            return
         self._graph.add_edge(src_cell, dest_cell)
+
+    def clear_dynamic(self, src_cell: _Cell):
+        '''
+        Clear the dynamic dependencies of a cell before evaluating
+        '''
+        self._graph.clear_dynamic_dep(src_cell)
+
+    def add_dynamic_dep(self, src_cell: _Cell, loc: str, sheet_name: str):
+        '''
+        Add dynamic dependency between cells in graph
+        '''
+        dest_cell = self.find_dest_cell(src_cell, loc, sheet_name)
+        if dest_cell is None:
+            return
+        self._graph.add_dynamic_dep(src_cell, dest_cell)
 
     # return the contents of the cell at the given location
     def get_cell_contents(self, sheet_name: str, loc: str):
@@ -451,8 +530,7 @@ class Workbook():
         idx, copy_name = self.new_sheet(copy_name)
         for loc, cell in sheet.items():
             self._set_cell_contents(copy_name, loc, cell.get_contents())
-        changed_cells = self._check_for_loop()
-        self._update_references(changed_cells)
+            self._update_cell(self.sheets[copy_name.upper()][loc.upper()])
         self._call_notification()
         self._update_sheet_extent(copy_name.upper(), None)
         self._check_missing_sheets(copy_name)
