@@ -3,7 +3,7 @@ The functions module implements function calls with many arguments or none
 '''
 import lark
 import sheets
-from sheets import cell
+from . import cell
 from .cellerror import CellError
 from .cellerrortype import CellErrorType
 
@@ -119,7 +119,7 @@ def func_if(evaluator, add_dep, args):
     if len(args) > 3:
         detail = "Too many arguments for IF"
         return CellError(CellErrorType(5), detail)
-    cond = evaluator.visit(args[0])
+    cond = check_boolean_input(evaluator.visit(args[0]))
     if isinstance(cond, CellError):
         return cond
     if cond:
@@ -167,8 +167,8 @@ def func_choose(evaluator, add_dep, args):
     if index == 0 or index > len(args):
         detail = "The index is out of bounds"
         return CellError(CellErrorType.TYPE_ERROR, detail)
-    add_dep.visit(args[index])
-    return evaluator.visit(args[index])
+    add_dep.visit(args[int(index)])
+    return evaluator.visit(args[int(index)])
 
 def func_isblank(evaluator, args):
     '''
@@ -209,7 +209,7 @@ def func_version(_, args):
     if args[0] is not None:
         detail = "VERSION takes no arguments"
         return CellError(CellErrorType.TYPE_ERROR, detail)
-    return sheets.version
+    return str(sheets.version)
 
 def func_indirect(evaluator, add_dep, args):
     '''
@@ -222,7 +222,7 @@ def func_indirect(evaluator, add_dep, args):
     if args[0] is None:
         detail = "Not enough arguments for INDIRECT"
         return CellError(CellErrorType.TYPE_ERROR, detail)
-    cellref_str = cell.convert_str(evaluator.visit(args))
+    cellref_str = cell.convert_str(evaluator.visit(args[0]))
     try:
         cellref = cell.parser.parse('=' + cellref_str)
     # The TypeError catches instances where the cellref_str is an error
