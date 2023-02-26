@@ -273,6 +273,45 @@ class AddDependencies(lark.visitors.Interpreter):
             cellref = tree.children[1].replace('$', '')
             self.workbook.add_dependency(self.this_cell, cellref, sheet_name)
 
+class AddDynamicDep(lark.visitors.Interpreter):
+    '''
+    Add the dependencies of the cell to the cellgraph
+    '''
+    def __init__(self, workbook, sheet_name, this_cell: _Cell):
+        self.workbook = workbook
+        self.sheet = sheet_name
+        self.this_cell = this_cell
+
+    def function(self, tree):
+        '''
+        Ignore adding dependencies for certain functions
+        '''
+        custom_function = DICTIONARY_FUNCTIONS.get(tree.children[0])
+        if custom_function is None:
+            return
+        _, dynamic_dep = custom_function
+        if dynamic_dep:
+            self.visit(tree.children[1])
+            return
+        for child in tree.children[1:]:
+            if child is None:
+                break
+            self.visit(child)
+
+    def cell(self, tree):
+        '''
+        Adds the cell references to the dependencies
+        '''
+        if len(tree.children) == 1:
+            cellref = tree.children[0].replace('$', '')
+            self.workbook.add_dynamic_dep(self.this_cell, cellref, self.sheet)
+        else:
+            sheet_name = tree.children[0]
+            if sheet_name[0] == '\'':
+                sheet_name = sheet_name[1:-1]
+            cellref = tree.children[1].replace('$', '')
+            self.workbook.add_dynamic_dep(self.this_cell, cellref, sheet_name)
+
 class FormulaEvaluator(lark.visitors.Interpreter):
     '''
     parse value of cell formulas
@@ -370,7 +409,8 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         custom_func, dynamic_dep = custom_function
         if not dynamic_dep:
             return custom_func(self, tree.children[1:])
-        add_dep = AddDependencies(self.workbook, self.sheet, self.this_cell)
+        self.workbook.clear_dynamic(self.this_cell)
+        add_dep = AddDynamicDep(self.workbook, self.sheet, self.this_cell)
         return custom_func(self, add_dep, tree.children[1:])
 
     def error(self, tree):
