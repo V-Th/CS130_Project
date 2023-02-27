@@ -121,7 +121,8 @@ class _Cell():
         '''
         Adds dependencies to the graph
         '''
-        add_to_graph = AddDependencies(self.workbook, self.sheet_name, self)
+        add_dep = self.workbook.add_dependency
+        add_to_graph = AddDependencies(add_dep, self.sheet_name, self)
         add_to_graph.visit(self.tree)
 
     def set_contents(self, contents: str):
@@ -161,7 +162,8 @@ class _Cell():
         '''
         rename sheet referenced by cell contents
         '''
-        evaluator = SheetNameManipulation(new_name, old_name)
+        args = [old_name, new_name]
+        evaluator = ContentManipulation(sheetname_manipulator, args)
         parsed = parser.parse(self.contents)
         self.contents = '= '+ evaluator.transform(parsed)
         self.tree = parser.parse(self.contents)
@@ -175,7 +177,8 @@ class _Cell():
         '''
         if self.contents.lstrip()[0] != '=':
             return self.contents
-        evaluator = CellrefManipulation(self.workbook, x_diff, y_diff, new_sheet_name)
+        args = [self.workbook, x_diff, y_diff, new_sheet_name]
+        evaluator = ContentManipulation(cellref_manipulator, args)
         parsed = parser.parse(self.contents)
         return '= ' + evaluator.transform(parsed)
 
@@ -238,8 +241,8 @@ class AddDependencies(lark.visitors.Interpreter):
     '''
     Add the dependencies of the cell to the cellgraph
     '''
-    def __init__(self, workbook, sheet_name, this_cell: _Cell):
-        self.workbook = workbook
+    def __init__(self, add_dep, sheet_name, this_cell: _Cell):
+        self.add_dep = add_dep
         self.sheet = sheet_name
         self.this_cell = this_cell
 
@@ -265,52 +268,13 @@ class AddDependencies(lark.visitors.Interpreter):
         '''
         if len(tree.children) == 1:
             cellref = tree.children[0].replace('$', '')
-            self.workbook.add_dependency(self.this_cell, cellref, self.sheet)
+            self.add_dep(self.this_cell, cellref, self.sheet)
         else:
             sheet_name = tree.children[0]
             if sheet_name[0] == '\'':
                 sheet_name = sheet_name[1:-1]
             cellref = tree.children[1].replace('$', '')
-            self.workbook.add_dependency(self.this_cell, cellref, sheet_name)
-
-class AddDynamicDep(lark.visitors.Interpreter):
-    '''
-    Add the dependencies of the cell to the cellgraph
-    '''
-    def __init__(self, workbook, sheet_name, this_cell: _Cell):
-        self.workbook = workbook
-        self.sheet = sheet_name
-        self.this_cell = this_cell
-
-    def function(self, tree):
-        '''
-        Ignore adding dependencies for certain functions
-        '''
-        custom_function = DICTIONARY_FUNCTIONS.get(tree.children[0])
-        if custom_function is None:
-            return
-        _, dynamic_dep = custom_function
-        if dynamic_dep:
-            self.visit(tree.children[1])
-            return
-        for child in tree.children[1:]:
-            if child is None:
-                break
-            self.visit(child)
-
-    def cell(self, tree):
-        '''
-        Adds the cell references to the dependencies
-        '''
-        if len(tree.children) == 1:
-            cellref = tree.children[0].replace('$', '')
-            self.workbook.add_dynamic_dep(self.this_cell, cellref, self.sheet)
-        else:
-            sheet_name = tree.children[0]
-            if sheet_name[0] == '\'':
-                sheet_name = sheet_name[1:-1]
-            cellref = tree.children[1].replace('$', '')
-            self.workbook.add_dynamic_dep(self.this_cell, cellref, sheet_name)
+            self.add_dep(self.this_cell, cellref, sheet_name)
 
 class FormulaEvaluator(lark.visitors.Interpreter):
     '''
@@ -410,7 +374,8 @@ class FormulaEvaluator(lark.visitors.Interpreter):
         if not dynamic_dep:
             return custom_func(self, tree.children[1:])
         self.workbook.clear_dynamic(self.this_cell)
-        add_dep = AddDynamicDep(self.workbook, self.sheet, self.this_cell)
+        add_dynamic = self.workbook.add_dynamic_dep
+        add_dep = AddDependencies(add_dynamic, self.sheet, self.this_cell)
         return custom_func(self, add_dep, tree.children[1:])
 
     def error(self, tree):
@@ -468,14 +433,60 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             detail = 'Bad reference to non-existent sheet: '+sheet_name
             return CellError(CellErrorType.BAD_REFERENCE, detail)
 
-class SheetNameManipulation(lark.Transformer):
+def sheetname_manipulator(old_and_new, values):
     '''
     replace sheet names referenced in cell contents
     '''
-    def __init__(self, new_name, old_name):
+    old_name = old_and_new[0]
+    new_name = old_and_new[1]
+    if len(values) == 1:
+        return values[0]
+    sheet_name = values[0].strip('\'')
+    if sheet_name.upper() == old_name.upper():
+        sheet_name = new_name
+    if not set(sheet_name).isdisjoint(_REQUIRE_QUOTES):
+        return '\''+sheet_name+'\''+'!'+values[1]
+    return sheet_name+'!'+values[1]
+
+def cellref_manipulator(args, values):
+    '''
+    return given cell reference with necessary locations replaced
+    '''
+    workbook = args[0]
+    x_diff = args[1]
+    y_diff = args[2]
+    new_sheet_name = args[3]
+    if len(values) == 1:
+        if values[0][0] == '$':
+            x_diff = 0
+            values[0] = values[0][1:]
+        if values[0].find('$') > 0:
+            y_diff = 0
+        cellref = values[0].replace('$', '')
+        row, col = workbook.loc_to_tuple(cellref)
+        return workbook.tuple_to_loc(row + x_diff, col + y_diff)
+    else:
+        if values[1][0] == '$':
+            x_diff = 0
+            values[0] = values[0][1:]
+        if values[1].find('$'):
+            y_diff = 0
+        cellref = values[1].replace('$', '')
+        row, col = workbook.loc_to_tuple(cellref)
+        if new_sheet_name is not None:
+            return new_sheet_name+'!'+ workbook.tuple_to_loc(row + x_diff,
+                col + y_diff)
+        return values[0]+'!'+ workbook.tuple_to_loc(row + x_diff,
+            col + y_diff)
+
+class ContentManipulation(lark.Transformer):
+    '''
+    replace sheet names referenced in cell contents
+    '''
+    def __init__(self, manipulation_type, args):
         super().__init__()
-        self.new_name = new_name
-        self.old_name = old_name
+        self.manipulator = manipulation_type
+        self.args = args
 
     def add_expr(self, values):
         '''
@@ -540,108 +551,4 @@ class SheetNameManipulation(lark.Transformer):
         '''
         return given cell reference with necessary sheet names replaced
         '''
-        if len(values) == 1:
-            return values[0]
-        sheet_name = values[0].strip('\'')
-        if sheet_name.upper() == self.old_name.upper():
-            sheet_name = self.new_name
-        if not set(sheet_name).isdisjoint(_REQUIRE_QUOTES):
-            return '\''+sheet_name+'\''+'!'+values[1]
-        return sheet_name+'!'+values[1]
-
-class CellrefManipulation(lark.Transformer):
-    '''
-    replace cell references referenced in cell contents
-    '''
-    def __init__(self, workbook, x_diff, y_diff, new_sheet_name = None):
-        super().__init__()
-        self.workbook = workbook
-        self.x_diff = x_diff
-        self.y_diff = y_diff
-        self.new_sheet_name = new_sheet_name
-
-    def add_expr(self, values):
-        '''
-        return given addition expression formatted with added spaces
-        '''
-        return values[0]+' '+values[1]+' '+values[2]
-
-    def mul_expr(self, values):
-        '''
-        return given multiplication expression formatted with added spaces
-        '''
-        return values[0]+' '+values[1]+' '+values[2]
-
-    def concat_expr(self, values):
-        '''
-        return given concatenation expression formatted with added spaces
-        '''
-        return values[0]+' '+'&'+' '+values[1]
-
-    def unary_op(self, values):
-        '''
-        return given unary expression formatted with added spaces
-        '''
-        return values[0] + values[1]
-
-    def error(self, values):
-        '''
-        return given error string
-        '''
-        return values[0]
-
-    def number(self, values):
-        '''
-        return given number
-        '''
-        return values[0]
-
-    def string(self, values):
-        '''
-        return given string
-        '''
-        return values[0]
-
-    def parens(self, values):
-        '''
-        return formatted given parenthetical expression
-        '''
-        return '('+values[0]+')'
-
-    def function(self, values):
-        '''
-        return formatted given function expression
-        '''
-        func_string = values[0]+'('
-        for val in values[1:]:
-            if val is None:
-                break
-            func_string += val + ','
-        return func_string.rstrip(',') +')'
-
-    def cell(self, values):
-        '''
-        return given cell reference with necessary locations replaced
-        '''
-        if len(values) == 1:
-            if values[0][0] == '$':
-                self.x_diff = 0
-                values[0] = values[0][1:]
-            if values[0].find('$') > 0:
-                self.y_diff = 0
-            cellref = values[0].replace('$', '')
-            row, col = self.workbook.loc_to_tuple(cellref)
-            return self.workbook.tuple_to_loc(row + self.x_diff, col + self.y_diff)
-        else:
-            if values[1][0] == '$':
-                self.x_diff = 0
-                values[0] = values[0][1:]
-            if values[1].find('$'):
-                self.y_diff = 0
-            cellref = values[1].replace('$', '')
-            row, col = self.workbook.loc_to_tuple(cellref)
-            if self.new_sheet_name is not None:
-                return self.new_sheet_name+'!'+ self.workbook.tuple_to_loc(row + self.x_diff,
-                    col + self.y_diff)
-            return values[0]+'!'+ self.workbook.tuple_to_loc(row + self.x_diff,
-                col + self.y_diff)
+        return self.manipulator(self.args, values)
