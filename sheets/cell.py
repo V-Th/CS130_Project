@@ -525,6 +525,17 @@ class SheetNameManipulation(lark.Transformer):
         '''
         return '('+values[0]+')'
 
+    def function(self, values):
+        '''
+        return formatted given function expression
+        '''
+        func_string = values[0]+'('
+        for val in values[1:]:
+            if val is None:
+                break
+            func_string += val + ','
+        return func_string.rstrip(',') +')'
+
     def cell(self, values):
         '''
         return given cell reference with necessary sheet names replaced
@@ -596,6 +607,17 @@ class CellrefManipulation(lark.Transformer):
         return formatted given parenthetical expression
         '''
         return '('+values[0]+')'
+
+    def function(self, values):
+        '''
+        return formatted given function expression
+        '''
+        func_string = values[0]+'('
+        for val in values[1:]:
+            if val is None:
+                break
+            func_string += val + ','
+        return func_string.rstrip(',') +')'
 
     def cell(self, values):
         '''
