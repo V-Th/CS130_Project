@@ -36,7 +36,7 @@
 //========================================
 // Functions
 
-?function : FUNCTION_NAME "(" [(base | expression) ("," (base | expression))*] ")"
+?function : FUNCTION_NAME "(" [expression ("," expression)*] ")"
 
 //========================================
 // Base values
