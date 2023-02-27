@@ -29,6 +29,7 @@ class Workbook():
         self.sheets = {}
         self._extents = {}
         self._display_sheets = {}
+        #self._display_sheets = [None]
         self._missing_sheets = {}
         self._graph = _CellGraph()
         self.on_cells_changed = []
@@ -560,8 +561,30 @@ class Workbook():
                     self.set_cell_contents(sheet_name, old_location, None)
         return contents
 
-    # pylint: disable=R0913
-    # pylint: disable=R0914
+    def _copy_move_cells(self, sheet_name: str, start_location: str,
+            end_location: str, to_location: str, move, to_sheet: Optional[str] = None):
+        if to_sheet is None:
+            to_sheet = sheet_name
+
+        self._check_relative_location(sheet_name, start_location, end_location,
+            to_location, to_sheet)
+
+        min_location = min(start_location, end_location)
+        x_diff = self.loc_to_tuple(to_location)[0] - self.loc_to_tuple(min_location)[0]
+        y_diff = self.loc_to_tuple(to_location)[1] - self.loc_to_tuple(min_location)[1]
+
+        x_1, y_1 = self.loc_to_tuple(start_location)
+        x_2, y_2 = self.loc_to_tuple(end_location)
+
+        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
+            sheet_name, to_sheet, move)
+
+        for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
+            for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
+                old_location = self.tuple_to_loc(i, j)
+                new_location = self.tuple_to_loc(i + x_diff, j + y_diff)
+                self.set_cell_contents(to_sheet, new_location, contents[old_location])
+
     def move_cells(self, sheet_name: str, start_location: str,
             end_location: str, to_location: str, to_sheet: Optional[str] = None):
         '''
@@ -570,30 +593,9 @@ class Workbook():
         relative and mixed cell-references updated by the relative distance
         each formula is being copied.
         '''
-        if to_sheet is None:
-            to_sheet = sheet_name
+        self._copy_move_cells(sheet_name, start_location, end_location, 
+                              to_location, True, to_sheet)
 
-        self._check_relative_location(sheet_name, start_location, end_location,
-            to_location, to_sheet)
-
-        min_location = min(start_location, end_location)
-        x_diff = self.loc_to_tuple(to_location)[0] - self.loc_to_tuple(min_location)[0]
-        y_diff = self.loc_to_tuple(to_location)[1] - self.loc_to_tuple(min_location)[1]
-
-        x_1, y_1 = self.loc_to_tuple(start_location)
-        x_2, y_2 = self.loc_to_tuple(end_location)
-
-        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
-            sheet_name, to_sheet, True)
-
-        for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
-            for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
-                old_location = self.tuple_to_loc(i, j)
-                new_location = self.tuple_to_loc(i + x_diff, j + y_diff)
-                self.set_cell_contents(to_sheet, new_location, contents[old_location])
-
-    # pylint: disable=R0913
-    # pylint: disable=R0914
     def copy_cells(self, sheet_name: str, start_location: str,
             end_location: str, to_location: str, to_sheet: Optional[str] = None):
         '''
@@ -602,24 +604,5 @@ class Workbook():
         relative and mixed cell-references updated by the relative distance
         each formula is being copied.
         '''
-        if to_sheet is None:
-            to_sheet = sheet_name
-
-        self._check_relative_location(sheet_name, start_location, end_location,
-            to_location, to_sheet)
-
-        min_location = min(start_location, end_location)
-        x_diff = self.loc_to_tuple(to_location)[0] - self.loc_to_tuple(min_location)[0]
-        y_diff = self.loc_to_tuple(to_location)[1] - self.loc_to_tuple(min_location)[1]
-
-        x_1, y_1 = self.loc_to_tuple(start_location)
-        x_2, y_2 = self.loc_to_tuple(end_location)
-
-        contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
-            sheet_name, to_sheet, False)
-
-        for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
-            for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
-                old_location = self.tuple_to_loc(i, j)
-                new_location = self.tuple_to_loc(i + x_diff, j + y_diff)
-                self.set_cell_contents(to_sheet, new_location, contents[old_location])
+        self._copy_move_cells(sheet_name, start_location, end_location, 
+                              to_location, False, to_sheet)
