@@ -549,14 +549,15 @@ class Workbook():
         if not self._is_valid_location(to_location):
             raise ValueError
 
-    def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff, sheet_name, to_sheet):
+    def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff, sheet_name, to_sheet, move: bool):
         contents = {}
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
                 old_location = self.tuple_to_loc(i, j)
                 start_cell = self.sheets[sheet_name.upper()][old_location.upper()]
                 contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
-                self.set_cell_contents(sheet_name, old_location, None)
+                if move:
+                    self.set_cell_contents(sheet_name, old_location, None)
         return contents
 
     # pylint: disable=R0913
@@ -583,7 +584,7 @@ class Workbook():
         x_2, y_2 = self.loc_to_tuple(end_location)
 
         contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
-            sheet_name, to_sheet)
+            sheet_name, to_sheet, True)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
@@ -615,7 +616,7 @@ class Workbook():
         x_2, y_2 = self.loc_to_tuple(end_location)
 
         contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
-            sheet_name, to_sheet)
+            sheet_name, to_sheet, False)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
