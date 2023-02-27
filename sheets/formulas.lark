@@ -31,7 +31,7 @@
 //========================================
 // Comparison Operations
 
-?compare_expr : (compare_expr COMPARE_OP)? base
+?compare_expr : (compare_expr COMPARE_OP)? (base | add_expr | concat_expr)
 
 //========================================
 // Functions
