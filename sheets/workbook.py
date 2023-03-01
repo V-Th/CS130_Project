@@ -16,6 +16,8 @@ from .cellerror import CellErrorType, CellError
 _RE = re.compile('[$]?[A-Za-z]+[$]?[1-9][0-9]*')
 _SHEET_CHARS = set(" .?!,:;!@#$%^&*()-_"+string.ascii_letters+string.digits)
 
+# pylint: disable=R0902
+# pylint: disable=R0904
 class Workbook():
     '''
     A workbook containing zero or more named spreadsheets.
@@ -29,12 +31,11 @@ class Workbook():
         self.sheets = {}
         self._extents = {}
         self._display_sheets = {}
-        #self._display_sheets = [None]
         self._missing_sheets = {}
         self._graph = _CellGraph()
         self.on_cells_changed = []
         self.changed_cells = []
-    
+
     def save_workbook(self, filename: string):
         '''
         Instance method to save a workbook to a text file or file-like object
@@ -50,7 +51,7 @@ class Workbook():
             for loc in self.sheets[sheet.upper()]:
                 sheet_dict['cell_contents'][loc] = self.sheets[sheet.upper()][loc].toJSON()
             sheet_list.append(sheet_dict)
-        with open(filename, 'w') as out_file:
+        with open(filename, 'w', encoding="utf-8") as out_file:
             if self.num_sheets() > 0:
                 json.dump({'sheets':sheet_list}, out_file, indent = 4)
 
@@ -368,11 +369,7 @@ class Workbook():
                 if self.sheets[sheet_upper][loc.upper()] in cells:
                     cells.remove(self.sheets[sheet_upper][loc.upper()])
 
-        # old_val = self.sheets[sheet_upper][loc.upper()].get_value()
         self.sheets[sheet_upper][loc.upper()].set_contents(contents)
-        # self.sheets[sheet_upper][loc.upper()].update_value()
-        # if old_val != self.sheets[sheet_upper][loc.upper()].get_value():
-        #     self.changed_cells.append((sheet_name, loc))
 
     # set the cell of the given location to the given contents
     def set_cell_contents(self, sheet_name: str, loc: str, contents:str) -> None:
@@ -381,10 +378,6 @@ class Workbook():
         '''
         self._set_cell_contents(sheet_name, loc, contents)
         cell = self.sheets[sheet_name.upper()][loc.upper()]
-        # self._update_refs_w_dynamic_refs(cell)
-        # cells_updated = [cell]
-        # cells_updated.extend(self._check_for_loop())
-        # self._update_references(cells_updated)
         self._update_cell(cell)
         self._call_notification()
         self._update_sheet_extent(sheet_name.upper(), cell)
@@ -484,8 +477,6 @@ class Workbook():
         entry = (new_name.upper(), new_name)
         sheets.insert(index, entry)
         self._display_sheets = dict(sheets)
-        #self._display_sheets.pop(sheet_name.upper())
-        #self._display_sheets[new_name.upper()] = new_name
         extent = self._extents.pop(sheet_name.upper())
         self._extents[new_name.upper()] = extent
         loc_cells = self.sheets.pop(sheet_name.upper())
@@ -546,8 +537,7 @@ class Workbook():
         self._check_missing_sheets(copy_name)
         return idx, copy_name
 
-    def _check_relative_location(self, sheet_name: str, start_location: str,
-            end_location: str, to_location: str, to_sheet):
+    def _check_relative_location(self, sheet_name: str, to_location: str, to_sheet):
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
         if to_sheet is not None and not self._sheet_name_exists(to_sheet):
@@ -555,27 +545,29 @@ class Workbook():
         if not self._is_valid_location(to_location):
             raise ValueError
 
-    def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff, 
+    # pylint: disable=R0913
+    def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff,
                                sheet_name, to_sheet, move: bool):
         contents = {}
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
                 old_location = self.tuple_to_loc(i, j)
                 contents[old_location] = None
-                if self._location_exists(sheet_name, old_location):
-                    start_cell = self.sheets[sheet_name.upper()][old_location.upper()]
-                    contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
+                if not self._location_exists(sheet_name, old_location):
+                    continue
+                start_cell = self.sheets[sheet_name.upper()][old_location.upper()]
+                contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
                 if move:
                     self.set_cell_contents(sheet_name, old_location, None)
         return contents
 
+    # pylint: disable=R0914
     def _copy_move_cells(self, sheet_name: str, start_location: str,
             end_location: str, to_location: str, move, to_sheet: Optional[str] = None):
         if to_sheet is None:
             to_sheet = sheet_name
 
-        self._check_relative_location(sheet_name, start_location, end_location,
-            to_location, to_sheet)
+        self._check_relative_location(sheet_name, to_location, to_sheet)
 
         min_location = min(start_location, end_location)
         x_diff = self.loc_to_tuple(to_location)[0] - self.loc_to_tuple(min_location)[0]
