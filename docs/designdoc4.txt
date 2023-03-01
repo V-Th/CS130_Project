@@ -16,15 +16,20 @@ Logistics (7 pts)
 -----------------
 
 L1.  [2pts] Enumerate all teammates here.
+
     Anushka Gupta
     Vinny Thai
 
 L2.  [2pts] What did each teammate focus on during this project?
 
+     Anushka focused on fixing JSON and copying/moving cells.
+     Vinny focused on implementing the comparison operations and function
+     implementation.
+     They worked on the performance test together.
 
 L3.  [3pts] Approximately how many hours did each teammate spend on the project?
-    Anushka -
-    Vinny -
+    Anushka - 10 hours
+    Vinny - 12 hours
 
 Spreadsheet Engine Design (31 pts)
 ----------------------------------
@@ -33,22 +38,42 @@ D1.  [3pts] Briefly describe the changes you made to the Lark parser grammar
      to support Boolean literals.
 
     The Lark parser grammar was given a new terminal called BOOLEAN which can
-    be the string "true" or "false" ignoring letter cases. This was added as an
-    optional to possible base types and would lead to bool to be called. 
+    be the string "true" or "false" ignoring letter cases. This was added as
+    an option to possible base types and would lead to bool to be called. 
 
 D2.  [4pts] Briefly describe the changes you made to the Lark parser grammar
      to support conditional expressions.  How did you ensure that conditional
      operations are lower precedence than arithmetic and string concatenation
      operations?
 
-    f
-
+    The Lark parser grammar was given a new expression type called
+    "comparison_expr". New terminals were also added to find the comparison
+    operators called COMPARE_OP. The other operations are given priority by
+    referencing those operations so that they are matched first before the
+    comparison_expr.
 
 D3.  [6pts] Briefly describe how function invocation works in your spreadsheet
      engine.  How easy or hard would it be for you to add new functions to your
      engine?  What about a third-party developer?  How well does your code
      follow the Open/Closed Principle?
 
+    The function invocation works by first parsing the contents for a 
+    function. If a function is found, then a function name must have been
+    found which is then used to find the appropriate function to execute. All
+    functions are stored in the custom_func.py file which holds a dictionary
+    that binds each function name to a function within the file that
+    implements this. Adding a new function only requires writing the implement
+    and adding the name along with the implementation function to the
+    dictionary.
+    I do not believe that this will be easy for third-party developers since
+    adding dynamic dependencies for loop detection is the responsibility of
+    the implementor of the new function to account for. This requires them to
+    understand somewhat how cell evaluation occurs and when dependencies need
+    to be added. I believe that the code follows the Open/Closed Principle.
+    The current code for functions do not need to be alter if new functions
+    are added. The code will simply need to extend the custom_func.py file
+    with new implementations of functions and have them added to the
+    dictionary.  
 
 D4.  [4pts] Is your implementation able to lazily evaluate the arguments to
      functions like IF(), CHOOSE() and IFERROR()?  (Recall from the Project 4
@@ -57,6 +82,15 @@ D4.  [4pts] Is your implementation able to lazily evaluate the arguments to
      what changes to your design were required to achieve this?  If not, what
      prevented your team from implementing this?
 
+    Yes, the implementation is capable of handling lazily evaluated arguments.
+    This required massive changes to how cell updates were called. Previously,
+    a list of cells to update were found using a bfs algorithm and were then
+    updated. However, an update may change what arguments are executed for
+    IF(), CHOOSE() and IFERROR(). Thus, a new update design was needed.
+    Instead of searching for all the cells then updating, a cell would be
+    found then updated, and the next cell would be found. This enabled
+    the possibility of catching a change in which argument is executed and
+    checking for a potential loop in the midst of updating.
 
 D5.  [4pts] Is your implementation able to evaluate the ISERROR() function
      correctly, with respect to circular-reference errors?  (Recall from the
@@ -65,12 +99,25 @@ D5.  [4pts] Is your implementation able to evaluate the ISERROR() function
      If so, what changes to your design were required to achieve this?  If
      not, what prevented your team from implementing this?
 
+    The implementation is able to evaluate the ISERROR() function correctly.
+    This is achieved by how circular-reference errors are detected and
+    updated. The loop detection algorithm returns a set of cells directly
+    involved in a loop but not those touching the loop. Thus, ISERROR() is
+    not given an circular-reference error. Instead, the cells touching the
+    loop are made to update their values in order to pick up the error for
+    their reference in the loop in order to propagate the error.
 
 D6.  [4pts] Is your implementation able to successfully identify cycles that
      are not evident from static analysis of formulas containing INDIRECT()?
      If so, what changes to your design were required, if any, to achieve this?
      If not, what prevented your team from implementing this?
 
+    The implementation is able to identify cycles that are not evident from
+    static analysis containing INDIRECT(). This done similarly to how lazily
+    executed arguments add dynamic dependencies during their execution and
+    a loop detection algorithm is ran after them. For INDIRECT(), the argument
+    is executed, and if the string is a valid cell reference then a dynamic
+    dependency is added and a loop detection is ran after its execution.
 
 D7.  [6pts] Project 4 has a number of small but important operations to
      implement.  Comparison operations include a number of comparison and type
@@ -79,6 +126,23 @@ D7.  [6pts] Project 4 has a number of small but important operations to
      these operations?  How did your approach affect the reusability and
      testability of these operations?
 
+    The comparison operations are evaluated similar to addition/multiplication
+    expressions where the arguments are type checked and converted when
+    necessary. Then, the operator is passed to a dicitonary to look for the
+    appropriate lambda that performs its comparison. This lambda is executed
+    on the arguments and returned.
+    As for the reusability and testability of these operations. This
+    implementation does not hinder the testing in any way. Furthermore, code
+    is easily reused for all the comparison operations.
+
+    The function implementation structure is similar to the comparison
+    operations, but there is no argument checking before the function is taken
+    from a dictionary. Instead, the function is responsible for checking the
+    type and number of arguments. This does not affect testing in any way.
+    As for resusability, this requires each function to have its own type
+    and number of argument checking which leads to some repetition. However,
+    some of it was reduced by creating some typing checking functions to
+    convert to string, numbers, and booleans.
 
 Performance Analysis (12 pts)
 -----------------------------
@@ -92,15 +156,41 @@ to identify where your program is spending the bulk of its time.
 A1.  [4pts] Briefly enumerate the performance tests you created to exercise
      your implementation.
 
+     We created 5 performance tests that operate on the same copy of a
+     workbook
+          copy_sheet
+          rename_sheet
+          copy_cells
+          move_cells
+          load_workbook
 
 A2.  [2pts] What profiler did you choose to run your performance tests with?
      Why?  Give an example of how to invoke one of your tests with the profiler.
+
+     We are continuing to use the cProfiler that we used for the performance
+     tests in Project 2. The performance tests are set up to use the same
+     layout of a workbook. Then, the function that creates a bulk change is
+     called onto the appropriate cells but stored in a lambda function. A
+     profile is enabled and the lambda function is executed. The profile
+     is closed, and the stats are reported.
 
 
 A3.  [6pts] What are ~3 of the most significant hot-spots you identified in your
      performance testing?  Did you expect these hot-spots, or were they
      surprising to you?
 
+     The biggest hotspot was the _update_cell which updates the value of the
+     cell and those referencing it. This was expected due to the continuous
+     calls to update cells as each one was either copied or moved.
+
+     Another hotspot is the Lark transformers when it visits a tree. This
+     was somewhat expected since we knew that the transformer was something
+     we could not control the speed of. However, we did not expect to have
+     called it so frequently.
+
+     Finally, the number of calls to initialize a cell was the final hotspot.
+     This was unexpected as the initialization should not take much time, but
+     the sheer of times that it was called was surprising.
 
 Section F:  CS130 Project 3 Feedback [OPTIONAL]
 -----------------------------------------------
