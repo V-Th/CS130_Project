@@ -50,5 +50,18 @@ def rename_sheet():
     exec = lambda : wb.rename_sheet(sheet1, "New Name")
     performance_run(exec, "Rename Sheet")
 
+def copy_cells():
+    sheet1, wb = set_up()
+    exec = lambda : wb.copy_cells(sheet1, 'a1', 'b999', 'b1')
+    performance_run(exec, "Copy Cells")
+
+def move_cells():
+    sheet1, wb = set_up()
+    exec = lambda : wb.move_cells(sheet1, 'a1', 'b999', 'b1')
+    performance_run(exec, "Move Cells")
+
 copy_sheet()
 rename_sheet()
+copy_cells()
+move_cells()
+
