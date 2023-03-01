@@ -1,6 +1,7 @@
 # pylint: skip-file
 import context
 import string
+import os
 import cProfile, pstats, io
 from sheets import *
 from pstats import SortKey
@@ -60,8 +61,20 @@ def move_cells():
     exec = lambda : wb.move_cells(sheet1, 'a1', 'b999', 'b1')
     performance_run(exec, "Move Cells")
 
+def load_workbook():
+    _, wb = set_up()
+    file = open('wb.json', "x", encoding="utf-8")
+    wb.save_workbook('wb.json')
+    exec = lambda : Workbook.load_workbook('wb.json')
+    file.close()
+    performance_run(exec, "Load Workbook")
+    if os.path.exists('wb.json'):
+        os.remove('wb.json')
+
+
 copy_sheet()
 rename_sheet()
 copy_cells()
 move_cells()
+load_workbook()
 
