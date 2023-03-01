@@ -164,8 +164,7 @@ class _Cell():
         '''
         args = [old_name, new_name]
         evaluator = ContentManipulation(sheetname_manipulator, args)
-        parsed = parser.parse(self.contents)
-        self.contents = '= '+ evaluator.transform(parsed)
+        self.contents = '= '+ evaluator.transform(self.tree)
         self.tree = parser.parse(self.contents)
 
     # given another location, compare to this cell's location
@@ -175,11 +174,12 @@ class _Cell():
         given another location, compare to this cell's location
         return contents with cell references adjusted accordingly
         '''
-        if self.contents != '=':
+        if self.contents[0] != '=':
+            return self.contents
+        if self.tree is None:
             return self.contents
         args = [self.workbook, x_diff, y_diff, new_sheet_name]
         evaluator = ContentManipulation(cellref_manipulator, args)
-        #parsed = parser.parse(self.contents)
         return '= ' + evaluator.transform(self.tree)
 
 def check_arithmetic_input(value):
@@ -465,19 +465,17 @@ def cellref_manipulator(args, values):
         cellref = values[0].replace('$', '')
         row, col = workbook.loc_to_tuple(cellref)
         return workbook.tuple_to_loc(row + x_diff, col + y_diff)
-    else:
-        if values[1][0] == '$':
-            x_diff = 0
-            values[0] = values[0][1:]
-        if values[1].find('$'):
-            y_diff = 0
-        cellref = values[1].replace('$', '')
-        row, col = workbook.loc_to_tuple(cellref)
-        if new_sheet_name is not None:
-            return new_sheet_name+'!'+ workbook.tuple_to_loc(row + x_diff,
-                col + y_diff)
-        return values[0]+'!'+ workbook.tuple_to_loc(row + x_diff,
-            col + y_diff)
+    if values[1][0] == '$':
+        x_diff = 0
+        values[0] = values[0][1:]
+    if values[1].find('$'):
+        y_diff = 0
+    cellref = values[1].replace('$', '')
+    row, col = workbook.loc_to_tuple(cellref)
+    if new_sheet_name is not None:
+        new_loc = workbook.tuple_to_loc(row + x_diff, col + y_diff)
+        return new_sheet_name +'!'+ new_loc
+    return values[0]+'!'+ workbook.tuple_to_loc(row + x_diff, col + y_diff)
 
 class ContentManipulation(lark.Transformer):
     '''
