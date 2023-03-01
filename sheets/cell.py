@@ -175,12 +175,12 @@ class _Cell():
         given another location, compare to this cell's location
         return contents with cell references adjusted accordingly
         '''
-        if self.contents.lstrip()[0] != '=':
+        if self.contents != '=':
             return self.contents
         args = [self.workbook, x_diff, y_diff, new_sheet_name]
         evaluator = ContentManipulation(cellref_manipulator, args)
-        parsed = parser.parse(self.contents)
-        return '= ' + evaluator.transform(parsed)
+        #parsed = parser.parse(self.contents)
+        return '= ' + evaluator.transform(self.tree)
 
 def check_arithmetic_input(value):
     '''

@@ -34,7 +34,7 @@ class Workbook():
         self._graph = _CellGraph()
         self.on_cells_changed = []
         self.changed_cells = []
-
+    
     def save_workbook(self, filename: string):
         '''
         Instance method to save a workbook to a text file or file-like object
@@ -54,7 +54,8 @@ class Workbook():
             if self.num_sheets() > 0:
                 json.dump({'sheets':sheet_list}, out_file, indent = 4)
 
-    def load_workbook(self, filename: string):
+    @staticmethod
+    def load_workbook(filename: string):
         '''
         This is a static method to load a workbook from a test file or
         file-like object in JSON format, and return the new Workbook
@@ -63,15 +64,17 @@ class Workbook():
         If the contents of the input cannot be parsed by the Python json
         module then a json.JSONDecodeError should be raised by the method.
         '''
+        w_b = Workbook()
         if os.path.getsize(filename) == 0:
-            return
+            return w_b
         file = open(filename, "r", encoding="utf-8")
         data = json.load(file)
         for sheet in data['sheets']:
-            _, name = self.new_sheet(sheet['name'])
+            _, name = w_b.new_sheet(sheet['name'])
             for loc in sheet['cell_contents']:
-                self.set_cell_contents(name, loc, sheet['cell_contents'][loc][1:-1])
+                w_b.set_cell_contents(name, loc, sheet['cell_contents'][loc][1:-1])
         file.close()
+        return w_b
 
     def _call_notification(self):
         # Runs through all given notification functions and calls them on the
@@ -547,10 +550,6 @@ class Workbook():
             end_location: str, to_location: str, to_sheet):
         if not self._sheet_name_exists(sheet_name):
             raise KeyError
-        if not self._location_exists(sheet_name, start_location):
-            raise KeyError
-        if not self._location_exists(sheet_name, end_location):
-            raise KeyError
         if to_sheet is not None and not self._sheet_name_exists(to_sheet):
             raise ValueError
         if not self._is_valid_location(to_location):
@@ -562,8 +561,10 @@ class Workbook():
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
                 old_location = self.tuple_to_loc(i, j)
-                start_cell = self.sheets[sheet_name.upper()][old_location.upper()]
-                contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
+                contents[old_location] = None
+                if self._location_exists(sheet_name, old_location):
+                    start_cell = self.sheets[sheet_name.upper()][old_location.upper()]
+                    contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
                 if move:
                     self.set_cell_contents(sheet_name, old_location, None)
         return contents
