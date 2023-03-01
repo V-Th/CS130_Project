@@ -50,10 +50,9 @@ class Workbook():
             for loc in self.sheets[sheet.upper()]:
                 sheet_dict['cell_contents'][loc] = self.sheets[sheet.upper()][loc].toJSON()
             sheet_list.append(sheet_dict)
-        with open(filename, encoding="utf-8") as out_file:
-            contents = out_file.write()
+        with open(filename, 'w') as out_file:
             if self.num_sheets() > 0:
-                json.dump({'sheets':sheet_list}, contents, indent = 4)
+                json.dump({'sheets':sheet_list}, out_file, indent = 4)
 
     def load_workbook(self, filename: string):
         '''
@@ -475,8 +474,15 @@ class Workbook():
             raise ValueError
 
         # Replace sheet name in all dictionaries in the workbook
-        self._display_sheets.pop(sheet_name.upper())
-        self._display_sheets[new_name.upper()] = new_name
+        sheets = list(self._display_sheets.items())
+        prev = (sheet_name.upper(), self._display_sheets[sheet_name.upper()])
+        index = sheets.index(prev)
+        sheets.remove(prev)
+        entry = (new_name.upper(), new_name)
+        sheets.insert(index, entry)
+        self._display_sheets = dict(sheets)
+        #self._display_sheets.pop(sheet_name.upper())
+        #self._display_sheets[new_name.upper()] = new_name
         extent = self._extents.pop(sheet_name.upper())
         self._extents[new_name.upper()] = extent
         loc_cells = self.sheets.pop(sheet_name.upper())
@@ -550,7 +556,8 @@ class Workbook():
         if not self._is_valid_location(to_location):
             raise ValueError
 
-    def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff, sheet_name, to_sheet, move: bool):
+    def _get_relative_contents(self, x_1, x_2, y_1, y_2, x_diff, y_diff, 
+                               sheet_name, to_sheet, move: bool):
         contents = {}
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
@@ -593,7 +600,7 @@ class Workbook():
         relative and mixed cell-references updated by the relative distance
         each formula is being copied.
         '''
-        self._copy_move_cells(sheet_name, start_location, end_location, 
+        self._copy_move_cells(sheet_name, start_location, end_location,
                               to_location, True, to_sheet)
 
     def copy_cells(self, sheet_name: str, start_location: str,
@@ -604,5 +611,5 @@ class Workbook():
         relative and mixed cell-references updated by the relative distance
         each formula is being copied.
         '''
-        self._copy_move_cells(sheet_name, start_location, end_location, 
+        self._copy_move_cells(sheet_name, start_location, end_location,
                               to_location, False, to_sheet)
