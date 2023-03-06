@@ -1,0 +1,92 @@
+Base (Vinny's Laptop Plugged In):
+    Long Chain Update = 0.168s
+    Long Chain Cycle = 0.004s
+    * More tests were added/changed after Attempt 3
+
+Attempt 1
+    Theory-The tree parsing is the main slow down currently, so we will store
+        tree after parsing once.
+    Rationale-The profiler indicates this with several functions from the lark
+        parser topping the list in longest total time taken by a function
+        excluding their calls to other functions.
+    Outcome-After making the necessary changes, the updates are faster by a
+        tenth of a second. The cycle update didn't improve since evaluation
+        is covered in cycle detection.
+
+        Long Chain Update = 0.035s
+        Long Chain Cycle = 0.004s
+
+Attempt 2
+    Theory-The loop detection is next hotspot, and to resolve this we chose
+        to reduce the number of calls to it.
+    Rationale-The profiler indicates that the loop detection function is
+        called several times which is unnecessary as it only needs to be
+        called once after a cell is added.
+    Outcome-After making the necessary changes, the updates are faster by 3
+        hundredths of a second. The cycle update didn't improve by much
+        however.
+        
+        Long Chain Update = 0.004s
+        Long Chain Cycle = 0.003s
+
+Attempt 3
+    Theory-The conversion of location strings to a tuple of integers was
+        the next hotspot. To reduce this, we sought to limit the number of
+        calls to the function.
+    Rationale-The profiler indicates this function to be largest total time,
+        and we believe that there are instances in which calling it is
+        unnecessary.
+    Outcome-After making the necessary changes, the updates are faster by a
+        hundredth of a second. The cycle update didn't improve by much
+        however.
+        
+        Long Chain Update = 0.003s
+        Long Chain Cycle = 0.003s
+
+New Base (Vinny's Laptop Plugged In):
+    * At this point, the tests were not long enough and did not match closely
+    with the reference tests, so the tests were reworked.
+    Long Chain Update = 0.007s
+    Long Chain Cycle = 0.003s
+    M by N Update = 0.008s
+    M by N Cycle = 0.004s
+    Recursion Limit = Fail
+
+Attempt 4
+    Theory-The recursion limit was failing, so we need to changed the
+        implementation to no longer use recursion.
+    Rationale-The test for recursion limit returns an error.
+    Outcome-After making the necessary changes, the updates about the same
+        or a bit slower. However, the recursion limit is no longer hit
+        by our implementation.
+        
+        Long Chain Update = 0.007s
+        Long Chain Cycle = 0.011s
+        M by N Update = 0.008s
+        M by N Cycle = 0.012s
+        Recursion Limit = 0.063s
+
+New Base (Vinny's Laptop Plugged In):
+    * The Fibonacci test was now added
+    Long Chain Update = 0.008s
+    Long Chain Cycle = 0.005s
+    M by N Update = 0.008s
+    M by N Cycle = 0.005s
+    Recursion Limit = 0.071s
+    Fibonacci = *Laptop fans got scary loud/Did not finish
+
+Attempt 5
+    Theory-The dfs search was now a hotspot, so a bfs search was chosen
+        as that made more sense. Really questioned why a dfs was ever chosen
+        in the first place.
+    Rationale-The test for recursion limit indicated that most of the time was
+        spent with the dfs search function.
+    Outcome-After making the switch, the performace of all the test are much
+        quicker with Fibonacci actually finishing.
+        
+        Long Chain Update = 0.002s
+        Long Chain Cycle = 0.002s
+        M by N Update = 0.007s
+        M by N Cycle = 0.005s
+        Recursion Limit = 0.059s
+        Fibonacci = 0.004s
