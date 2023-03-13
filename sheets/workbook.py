@@ -9,6 +9,7 @@ import json
 import string
 import logging
 from typing import Optional
+from .sort import Row
 from .cell import _Cell
 from .cellgraph import _CellGraph
 from .cellerror import CellErrorType, CellError
@@ -529,9 +530,9 @@ class Workbook():
             num += 1
         copy_name = copy_name + '_' + str(num)
         idx, copy_name = self.new_sheet(copy_name)
-        for loc, cell in sheet.items():
+        for (loc, cell) in sheet.items():
             self._set_cell_contents(copy_name, loc, cell.get_contents())
-            self._update_cell(self.sheets[copy_name.upper()][loc.upper()])
+            self.sheets[copy_name.upper()][loc.upper()].value = cell.get_value()
         self._call_notification()
         self._update_sheet_extent(copy_name.upper(), None)
         self._check_missing_sheets(copy_name)
