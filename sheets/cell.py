@@ -162,6 +162,8 @@ class _Cell():
         '''
         rename sheet referenced by cell contents
         '''
+        if old_name.upper() not in self.contents.upper():
+            return
         args = [old_name, new_name]
         evaluator = ContentManipulation(sheetname_manipulator, args)
         self.contents = '= '+ evaluator.transform(self.tree)
