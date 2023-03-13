@@ -257,6 +257,8 @@ class AddDependencies(lark.visitors.Interpreter):
             return
         _, dynamic_dep = custom_function
         if dynamic_dep:
+            if tree.children[1] is None:
+                return
             self.visit(tree.children[1])
             return
         for child in tree.children[1:]:
