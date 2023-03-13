@@ -257,6 +257,7 @@ class Workbook():
                 sccs = self._graph.particular_SCC(cell)
                 if to_update in sccs:
                     self._update_cells_in_loop(to_update, sccs)
+                    continue
             if old_val != to_update.get_value():
                 sheet_name = to_update.sheet_name
                 loc = to_update.location
@@ -618,11 +619,10 @@ class Workbook():
             raise KeyError
         end_valid = self._is_valid_location(end_location)
         start_valid = self._is_valid_location(start_location)
-        if (not end_valid and start_valid) or (not sort_cols):
-            raise ValueError
-        # Check for duplicate columns
         unique_col = set(abs(col) for col in sort_cols)
-        if len(unique_col) < len(sort_cols):
+        # Check for duplicate columns
+        not_unique_col = len(unique_col) < len(sort_cols)
+        if (not end_valid and start_valid) or (not sort_cols) or (not_unique_col):
             raise ValueError
 
         # Arrange the range of cells and check if they are valid
