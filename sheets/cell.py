@@ -357,9 +357,9 @@ class FormulaEvaluator(lark.visitors.Interpreter):
             values[0] = decimal.Decimal()
             values[2] = decimal.Decimal()
         if values[0] is None:
-            values[0] = _COMPARISON_EMPTY_CELL[type(values[0])]
+            values[0] = _COMPARISON_EMPTY_CELL[type(values[2])]
         if values[2] is None:
-            values[2] = _COMPARISON_EMPTY_CELL[type(values[2])]
+            values[2] = _COMPARISON_EMPTY_CELL[type(values[0])]
         operator = _COMPARISON_LAMBDAS[values[1]]
         return compare_op(values[0], values[2], operator)
 
