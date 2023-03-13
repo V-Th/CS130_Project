@@ -607,3 +607,72 @@ class Workbook():
         '''
         self._copy_move_cells(sheet_name, start_location, end_location,
                               to_location, False, to_sheet)
+
+    def sort_region(self, sheet_name: str, start_location: str,
+                    end_location: str, sort_cols: list[int]):
+        '''
+        Sort the specified region of a spreadsheet with a stable sort, using
+        the specified columns for comparison.
+        '''
+        if not self._sheet_name_exists(sheet_name):
+            raise KeyError
+        end_valid = self._is_valid_location(end_location)
+        start_valid = self._is_valid_location(start_location)
+        if (not end_valid and start_valid) or (not sort_cols):
+            raise ValueError
+        # Check for duplicate columns
+        unique_col = set(abs(col) for col in sort_cols)
+        if len(unique_col) < len(sort_cols):
+            raise ValueError
+
+        # Arrange the range of cells and check if they are valid
+        sheet_upper = sheet_name.upper()
+        x_1, y_1 = self.loc_to_tuple(start_location)
+        x_2, y_2 = self.loc_to_tuple(end_location)
+        min_x = min(x_1, x_2)
+        max_x = max(x_1, x_2)
+        min_y = min(y_1, y_2)
+        max_y = max(y_1, y_2)
+        index_range = max_x - min_x + 1
+        if any(idx > index_range or idx <= 0 for idx in sort_cols):
+            raise ValueError
+
+        # Take rows and place them into adapter for sorting
+        list_of_rows: list[Row] = []
+        for row in range(min_y, max_y + 1):
+            sorting_row = Row(row)
+            for col in sort_cols:
+                sorting_row.add_column_order(col)
+                val_loc = self.tuple_to_loc(min_x + col - 1, row)
+                cell = self.sheets[sheet_upper].get(val_loc)
+                val = None if cell is None else cell.get_value()
+                sorting_row.add_column_value(val)
+            list_of_rows.append(sorting_row)
+        list_of_rows.sort()
+
+        # Take sorted rows and get shifted contents
+        rows_contents = []
+        for idx, row in enumerate(list_of_rows):
+            y_diff = min_y + idx - row.row_loc
+            contents_of_row = []
+            for col in range(min_x, max_x + 1):
+                cell_loc = self.tuple_to_loc(col, row.row_loc)
+                cell: _Cell = self.sheets[sheet_upper].get(cell_loc)
+                new_loc = self.tuple_to_loc(col, min_y + idx)
+                content = None
+                if cell is not None:
+                    if cell.contents is not None:
+                        content = cell.get_relative_contents(0, y_diff)
+                loc_content = (new_loc, content)
+                contents_of_row.append(loc_content)
+            rows_contents.append(contents_of_row)
+
+        for row in rows_contents:
+            for new_loc, content in row:
+                cell = self.sheets[sheet_upper].get(new_loc)
+                old_val = None if cell is None else cell.get_value()
+                self._set_cell_contents(sheet_name, new_loc, content)
+                self._update_cell(cell)
+                if old_val != cell.get_value():
+                    self.changed_cells.append(cell)
+        self._call_notification()
