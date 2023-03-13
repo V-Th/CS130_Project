@@ -60,6 +60,12 @@ class TestMethods(unittest.TestCase):
         self.assertIsInstance(a1_val, CellError)
         self.assertEqual(a1_val.get_type(), CellErrorType.CIRCULAR_REFERENCE)
 
+    def test_empty_iferror(self):
+        self.wb.set_cell_contents(self.s1, 'a1', '= IFERROR()')
+        a1_val = self.wb.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.TYPE_ERROR)
+
     def test_choose(self):
         self.wb.set_cell_contents(self.s1, 'a2', '1')
         self.wb.set_cell_contents(self.s1, 'a1', '= CHOOSE(a2, 1, 2)')
@@ -90,6 +96,16 @@ class TestMethods(unittest.TestCase):
         self.assertIsInstance(a1_val, CellError)
         self.assertEqual(a1_val.get_type(), CellErrorType.TYPE_ERROR)
         self.wb.set_cell_contents(self.s1, 'a2', 'Quickly')
+        a1_val = self.wb.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.TYPE_ERROR)
+
+    def test_choose_more(self):
+        self.wb.set_cell_contents(self.s1, 'a1', '= CHOOSE(1, a1, 2)')
+        a1_val = self.wb.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.CIRCULAR_REFERENCE)
+        self.wb.set_cell_contents(self.s1, 'a1', '= CHOOSE()')
         a1_val = self.wb.get_cell_value(self.s1, 'a1')
         self.assertIsInstance(a1_val, CellError)
         self.assertEqual(a1_val.get_type(), CellErrorType.TYPE_ERROR)
