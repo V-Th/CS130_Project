@@ -1,0 +1,42 @@
+Base (Vinny's Laptop Plugged In):
+    Copy Sheet = 10.137s
+    Rename Sheet = 2.364s
+    Copy Cells = 11.157s
+    Move Cells = 10.947s
+    Load Workbook = 10.156s
+
+Currently only Copy Sheet and Rename Sheet (no cellrefs) is behind the
+performance requirement. The Rename Sheet test happens to have no cellrefs
+(by its flawed design when it was first made) but this means it matches the
+test that is currently failing.
+
+Attempt 1
+    Theory-The Rename Sheet has unnecessary calls to the parser to replace the
+        old sheet name as none of the cells have the old name. Thus, adding
+        a condition to find the old name in the contents then call the parser
+        should lower the runtime.
+    Rationale-The profiler indicates that there was a call to parser for every
+        cell that had a direct reference to a cell in the sheet.
+    Outcome-After making the necessary changes, the Rename Sheet test is much
+        faster.
+
+    Copy Sheet = 10.400s
+    Rename Sheet = 0.002s
+    Copy Cells = 10.443s
+    Move Cells = 9.730s
+    Load Workbook = 10.705s
+
+Attempt 2
+    Theory-The Copy Sheet has many calls to update_cell which isn't necessary
+        copying cells whose values have been already updated. Any update
+        should come from cells referencing this new sheet.
+    Rationale-The profiler indicates that the largest hotspot were from many
+        calls to update_cell.
+    Outcome-After making the necessary changes, the Copy Sheet test is much
+        faster.
+
+    Copy Sheet = 2.197s
+    Rename Sheet = 0.002s
+    Copy Cells = 10.869s
+    Move Cells = 10.455s
+    Load Workbook = 10.504s
