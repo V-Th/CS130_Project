@@ -29,8 +29,6 @@ miscellaneous functions, it lowers the coupling between modules that would
 have occurred if those functions had to exist elsewhere. Thus, the utils.py
 serves to lower coupling throughout the codebase even if it has low cohesion.
 
-As for improvements,
-
 Feedback comments on implementation aspects of the `sheets` library
 -------------------------------------------------------------------
 
@@ -61,6 +59,9 @@ constant should be created within error_types.py which both modules already
 import. Both modules can then access the same dictionary and maintain
 consistent behavior.
 
+There is one small note about the function names in the lark file. The
+function name cannot be started with an underscore.
+
 Feedback comments on testing aspects of the project
 ---------------------------------------------------
 
@@ -72,7 +73,23 @@ etc.  What testing practices are employed effectively in the project?  What
 testing practices should be incorporated to improve the quality-assurance
 aspects of the project?
 
-<your team's feedback here>
+The tests are all thorough testing basic expectations of features and slowly
+escalating into more nuanced uses of the feature. The tests all utilize
+unittest and are ran using github workflow making automation easy. Tests are
+even made for important components of code that will not be touched by users
+such as test_graph which tests that cycle detection and topological sorting
+for cell evaluation.
+
+One concern about the tests is the performance testing code. The profiler is
+enabled using the setUp function in unittest.TestCase which runs before every
+test. This means that any arranging of the workbook is included in the profile
+which can make it hard to determin hotspots of a specific function call.
+
+In addition, the assertion of many of the tests occurs within a for-test_loop
+which can make it bit difficult to determine which iteration of the loop was
+responsible for the test failing. Although it will make the test code longer,
+separating more of the tests into smaller ones will make test failures more
+clear as to which line or cells are responsible for the failure.
 
 Consider the implementation quality of the testing code itself, in the same
 areas described in the previous section.  What practices are used effectively
@@ -80,7 +97,24 @@ in the testing code to make it concise, readable and maintainable?  What
 practices could or should be incorporated to improve the quality of the
 testing code?
 
-<your team's feedback here>
+The quality of the testing code is amazing clear test names and comments
+throughout the code detailing which what each section of the test checks for.
+A small improvement to the testing code is the use of unittest.TestCase's
+feature of self.assertRaise() which can be used as a context object to run
+code and catch desired exceptions or fail otherwise. For example, instead of
+
+try:
+    do_something()
+    self.fail()
+except CertainError:
+    pass
+
+it can be written as
+
+with self.assertRaises(CertainError):
+    do_something
+
+This will help will making the code concise and clear in what it is testing.
 
 Feedback comments on other aspects of the project
 -------------------------------------------------
