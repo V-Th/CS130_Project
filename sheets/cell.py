@@ -458,26 +458,32 @@ def cellref_manipulator(args, values):
     x_diff = args[1]
     y_diff = args[2]
     new_sheet_name = args[3]
+    abs_row = False
+    abs_col = False
     if len(values) == 1:
         if values[0][0] == '$':
             x_diff = 0
+            abs_row = True
             values[0] = values[0][1:]
         if values[0].find('$') > 0:
             y_diff = 0
+            abs_col= True
         cellref = values[0].replace('$', '')
         row, col = workbook.loc_to_tuple(cellref)
-        return workbook.tuple_to_loc(row + x_diff, col + y_diff)
+        return workbook.tuple_to_loc(row + x_diff, col + y_diff, abs_row, abs_col)
     if values[1][0] == '$':
         x_diff = 0
+        abs_row = True
         values[0] = values[0][1:]
     if values[1].find('$'):
         y_diff = 0
+        abs_col = True
     cellref = values[1].replace('$', '')
     row, col = workbook.loc_to_tuple(cellref)
+    new_loc = workbook.tuple_to_loc(row + x_diff, col + y_diff, abs_row, abs_col)
     if new_sheet_name is not None:
-        new_loc = workbook.tuple_to_loc(row + x_diff, col + y_diff)
         return new_sheet_name +'!'+ new_loc
-    return values[0]+'!'+ workbook.tuple_to_loc(row + x_diff, col + y_diff)
+    return values[0]+'!'+ new_loc
 
 class ContentManipulation(lark.Transformer):
     '''

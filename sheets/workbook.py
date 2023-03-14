@@ -9,7 +9,7 @@ import json
 import string
 import logging
 from typing import Optional
-from .sort import Row
+#from .sort import Row
 from .cell import _Cell
 from .cellgraph import _CellGraph
 from .cellerror import CellErrorType, CellError
@@ -48,13 +48,12 @@ class Workbook():
             raise ValueError
         sheet_list = []
         for sheet in self.list_sheets():
-            sheet_dict = {'name':sheet, 'cell_contents':{}}
+            sheet_dict = {'name': sheet, 'cell_contents': {}}
             for loc in self.sheets[sheet.upper()]:
                 sheet_dict['cell_contents'][loc] = self.sheets[sheet.upper()][loc].toJSON()
             sheet_list.append(sheet_dict)
         with open(filename, 'w', encoding="utf-8") as out_file:
-            if self.num_sheets() > 0:
-                json.dump({'sheets':sheet_list}, out_file, indent = 4)
+            json.dump({'sheets':sheet_list}, out_file, indent = 4)
 
     @staticmethod
     def load_workbook(filename: string):
@@ -155,7 +154,7 @@ class Workbook():
                 break
         return (row, col)
 
-    def tuple_to_loc(self, row: int, col: int) -> str:
+    def tuple_to_loc(self, row: int, col: int, abs_row: bool = None, abs_col: bool = None) -> str:
         '''
         Converts row and col to location in workbook
         '''
@@ -165,7 +164,12 @@ class Workbook():
             letter_str = (chr((modulo) + ord('A'))) + letter_str
             row = (row - 1) // 26
         if not self._is_valid_location(letter_str + str(col)):
+            print(letter_str + str(col) + " is #REF!")
             return "#REF!"
+        if abs_row:
+            letter_str = '$' + letter_str
+        if abs_col:
+            return letter_str + '$' + str(col)
         return letter_str + str(col)
 
     # returns whether the given string represents a valid location in the sheet
@@ -563,28 +567,32 @@ class Workbook():
         return contents
 
     # pylint: disable=R0914
-    def _copy_move_cells(self, sheet_name: str, start_location: str,
-            end_location: str, to_location: str, move, to_sheet: Optional[str] = None):
+    def _replace_cells(self, sheet_name: str, start_location: str,
+                         end_location: str, to_location: str,
+                         move, to_sheet: Optional[str] = None):
         if to_sheet is None:
             to_sheet = sheet_name
 
-        self._check_relative_location(sheet_name, to_location, to_sheet)
-
-        min_location = min(start_location, end_location)
-        x_diff = self.loc_to_tuple(to_location)[0] - self.loc_to_tuple(min_location)[0]
-        y_diff = self.loc_to_tuple(to_location)[1] - self.loc_to_tuple(min_location)[1]
-
         x_1, y_1 = self.loc_to_tuple(start_location)
         x_2, y_2 = self.loc_to_tuple(end_location)
+        dest_tuple = self.loc_to_tuple(to_location)
+
+        self._check_relative_location(sheet_name, to_location, to_sheet)
+
+        min_loc = (min(x_1, x_2), min(y_1, y_2))
+
+        x_diff = dest_tuple[0] - min_loc[0]
+        y_diff = dest_tuple[1] - min_loc[1]
 
         contents = self._get_relative_contents(x_1, x_2, y_1, y_2, x_diff, y_diff,
-            sheet_name, to_sheet, move)
+                                               sheet_name, to_sheet, move)
 
         for i in range(min(x_1, x_2), max(x_1, x_2) + 1):
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
                 old_location = self.tuple_to_loc(i, j)
                 new_location = self.tuple_to_loc(i + x_diff, j + y_diff)
                 self.set_cell_contents(to_sheet, new_location, contents[old_location])
+
 
     def move_cells(self, sheet_name: str, start_location: str,
             end_location: str, to_location: str, to_sheet: Optional[str] = None):
@@ -594,16 +602,18 @@ class Workbook():
         relative and mixed cell-references updated by the relative distance
         each formula is being copied.
         '''
-        self._copy_move_cells(sheet_name, start_location, end_location,
+        self._replace_cells(sheet_name, start_location, end_location,
                               to_location, True, to_sheet)
 
     def copy_cells(self, sheet_name: str, start_location: str,
-            end_location: str, to_location: str, to_sheet: Optional[str] = None):
+                   end_location: str, to_location: str,
+                   to_sheet: Optional[str] = None):
         '''
         Copy cells from one location to another, possibly moving them to
         another sheet. All formulas in the area being moved will also have all
         relative and mixed cell-references updated by the relative distance
         each formula is being copied.
         '''
-        self._copy_move_cells(sheet_name, start_location, end_location,
+        self._replace_cells(sheet_name, start_location, end_location,
                               to_location, False, to_sheet)
+
