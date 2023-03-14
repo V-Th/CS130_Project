@@ -1,0 +1,171 @@
+CS130 Project Review
+====================
+
+# reviewing release tag 1.3
+
+Team performing review:  crocodile
+Work being reviewed:  rosella
+
+The first two sections are for reviewing the `sheets` library code itself,
+excluding the test code and other aspects of the project.  The remaining
+sections are for those other supporting parts of the project.
+
+Feedback comments on design aspects of the `sheets` library
+-----------------------------------------------------------
+
+Consider the overall design and structure of the `sheets` library from
+the perspective of the GRASP principles (Lecture 20) - in particular the
+principles of high cohesion and low coupling.  What areas of the project
+codebase are structured in a highly effective way?  What areas of the
+codebase could be restructured to have higher cohesion and/or lower
+coupling?  Give specific suggestions for how to achieve this in the code.
+
+A place where the code has high cohesion is in the CellGraph class, where 
+this group handles their dependencies. We appreciate that they pulled this 
+code out separately from workbook, in a way that the implementation of 
+dependency monitoring is separate from where the dependencies are added.
+This facilitates that if this were to be changed, the code itself would not
+change. We also appreciate that in many places they use the _ symbol at the 
+beginning of methods or functions that they intend to be private, to further 
+encapsulate duties of classes to within that class.
+
+We think some places that the design could be improved would be further 
+encapsulating pieces of code into common modules. For example, we believe 
+lines 116-197 of workbook.py could and should be pulled out into a separate 
+module that would handle location functionality (i.e. does a sheet exist, 
+is a location valid, turning a location into a tuple, etc), such that 
+modules other than workbook could use this without costly imports. Additionally,
+we also think that this codebase should be careful passing around workbook and 
+exposing public workbook methods to other pieces of their code. In our opinion,
+having public methods of workbook that aren't specified by the API is 
+dangerous because the user could invoke these methods (we are aware that in 
+python it's not possible to make methods private, but they nonetheless should
+be treated as private). So we question whether methods such as add_dynamic_dep, 
+clear_dynamic, should be allowed to be invoked by the FormulaEvaluator. In 
+our opinion, ideally the cellgraph object should be passed directly to the
+FormulaEvaluator, instead of using the workbook as an intermediary. We also 
+think that the lark interpreters should perhaps be pulled out of the cell class 
+such that they are not so tightly coupled. 
+
+As discussed with Team Rosella, for correctness, we think that the custom function 
+part of this code to modification by extending the static argument checker to no 
+longer make the assumption that the first argument is static, and the remaining are 
+dynamic (if dynamic arguments exist). 
+
+
+Feedback comments on implementation aspects of the `sheets` library
+-------------------------------------------------------------------
+
+Consider the actual implementation of the project from the perspectives
+of coding style (naming, commenting, code formatting, decomposition into
+functions, etc.), and idiomatic use of the Python language and language
+features.  What practices are used effectively in the codebase to make
+for concise, readable and maintainable code?  What practices could or
+should be incorporated to improve the quality, expressiveness, readability
+and maintainability of the code?
+
+We appreciated this group's use of docstrings - we thought it was the 
+perfect amount of documentation (not so much as to be rigid, but 
+enough to understand what methods are supposed to do). We also appreciated 
+the way this codebase generally used good variable names, used inheritance in 
+places like using a common transformer for updating cell contents, and 
+in general was not afraid to pass in functions as variables.
+
+Some implementation feedback we would have would be to avoid the anti-pattern
+
+    for A:
+        if B:
+            continue
+        code
+    
+and instead writing
+
+    for A:
+        if not B:
+            code
+
+Additionally, we would highly recommend this codebase takes advantage 
+of python's optional typing system in order to specify the types of 
+their variables - in some places it is hard as a reader or a client to 
+tell what type is expected for a function. Additionally with their 
+inheritance with ContentManipulation, we suggest they make some sort of 
+class to handle the values unpacking, as it was a bit hard to understand 
+at first. We also noticed some repetition in this code - we thought quotes 
+were checked for multiple times, and cellref_manipulator seemed to want 
+to change both cell references and sheets which we felt was unnecessary (it 
+should only have one task). 
+
+There were also some places where we found pieces of code that were 
+unused according to VSCode, either by virtue of in fact not being 
+used, or the class object calling them not being identified as such.
+We would fix this by removing blocks of unused code (i.e. _check_for_loop 
+in workbook) or else making clear the object calling them (i.e. clear_dynamic 
+in workbook is not recognized as being used even though it is). 
+
+Finally, some implementation feedback that we have is that we think 
+a topological sort is necessary for updates that occur at the same time 
+(i.e. moving a bunch of cells) to make sure that those don't get updated
+multiple times - a BFS is not sufficient in this case. 
+We also think in the if() function, cells may need to 
+be updated that were not previously identified in order for the if() 
+to return the correct value - this is not handled currently.
+
+
+Feedback comments on testing aspects of the project
+---------------------------------------------------
+
+Consider the testing aspects of the project, from the perspective of "testing
+best practices" (Lectures 4-6):  completeness/thoroughness of testing,
+automation of testing, focus on testing the "most valuable" functionality vs.
+"trivial code," following the Arrange-Act-Assert pattern in individual tests,
+etc.  What testing practices are employed effectively in the project?  What
+testing practices should be incorporated to improve the quality-assurance
+aspects of the project?
+
+We felt that overall, more testing was needed of the complicated things 
+like move and copy, renaming, conditional functions, cycles, some of the conditonals, etc. 
+We found that often simple things were tested, sometimes multiple times 
+(e.g. test_loop 1, 2, and 3 all test the same thing in our opinion), 
+and often edge cases were ignored (e.g. making and breaking cycles in move and copy, 
+nested conditionals, etc). We think many of the tests could be more intentional
+about testing some specific behavior, rather than just generally testing 
+functionality. We also found a few cases where multiple tests seemed 
+to be bundled in one (e.g. the conditional function tests) - this would make 
+it very hard to tell which part of the test fails, if it fails. We would recommend 
+splitting these tests into several smaller tests, perhaps with a common "arrange" method 
+to set up the operation to be tested. We also think this codebase would benefit from a 
+couple larger integration tests, particularly for complicated things like cycles 
+or conditional functions that are hard to get right. 
+
+
+Consider the implementation quality of the testing code itself, in the same
+areas described in the previous section.  What practices are used effectively
+in the testing code to make it concise, readable and maintainable?  What
+practices could or should be incorporated to improve the quality of the
+testing code?
+
+We appreciated the use of unittest, to allow the tests to all run at once.
+We also appreciated the way the performance tests were structured to dynamically
+take in the function to test. We thought some of the test names could be improved - 
+often times tests were named like "test_thing_1", "test_thing_2", etc; we think 
+naming the test as specifically what behavior is tested would improve the readability 
+and cohesiveness. We didn't notice any instances of tests "breaking in" to the 
+implementation and testing that directly, which we think makes these tests maintainable 
+long term. We think some test files that are no longer used like "unit_test.py" should 
+be deleted. 
+
+
+Feedback comments on other aspects of the project
+-------------------------------------------------
+
+If you have any other comments - compliments or suggestions for improvement -
+that aren't covered by previous sections, please include them here.
+
+We appreciate that doing this project as a group of 2 is challenging, and would like to 
+commend team rosella for their hard work and dedication. As a team of 3, we have also 
+faced struggles to finish the projects in completeness, and we really admire how team 
+rosella has been so successful even with this disadvantage. We also think that team 
+rosella has been able to achieve quite a lot of great performance and functionality with 
+a manageably sized codebase and we commend them for their smart code. For example, we 
+found the use of the worklist and todo to implement iterative tarjan quite intriguing. 
+We learned and admired lots when reviewing their codebase!
