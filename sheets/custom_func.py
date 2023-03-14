@@ -211,7 +211,7 @@ def func_version(_, args):
     if args[0] is not None:
         detail = "VERSION takes no arguments"
         return CellError(CellErrorType.TYPE_ERROR, detail)
-    return str(sheets.version)
+    return sheets.version
 
 def func_indirect(evaluator, add_dep, args):
     '''

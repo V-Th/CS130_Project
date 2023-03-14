@@ -1,3 +1,4 @@
+# pylint: skip-file
 import context
 import unittest
 import decimal
@@ -198,6 +199,11 @@ class TestMethods(unittest.TestCase):
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
             self.wb.set_cell_contents(self.s1, 'a1', '=('+cellerrortype.error_to_str(errortype)+')')
             self.assertEqual(self.wb.get_cell_value(self.s1, 'a1').get_type(), errortype)
+
+    def test_expected_error(self):
+        '''
+        Test which error is returned and compares with expected error
+        '''
 
 if __name__ == '__main__':
     unittest.main()

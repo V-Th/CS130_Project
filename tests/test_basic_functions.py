@@ -1,3 +1,4 @@
+# pylint: skip-file
 import context
 import unittest
 import decimal

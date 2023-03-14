@@ -161,6 +161,8 @@ class _CellGraph():
                 scc.clear()
             else:
                 cell = scc.pop()
+                if cell in self.dynamic[cell]:
+                    self.sccs.add(cell)
                 if cell in self.graph[cell]:
                     self.sccs.add(cell)
         if parent is not None:

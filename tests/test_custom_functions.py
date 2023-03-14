@@ -246,7 +246,15 @@ class TestMethods(unittest.TestCase):
         self.workbook.set_cell_contents(self.s1, 'a1', '= VERSION()')
         a1_val = self.workbook.get_cell_value(self.s1, 'a1')
         self.assertIsInstance(a1_val, str)
-        self.assertEqual(a1_val, str(version))
+        self.assertEqual(a1_val, version)
+        self.workbook.set_cell_contents(self.s1, 'a1', '= VERSION(1)')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.TYPE_ERROR)
+        self.workbook.set_cell_contents(self.s1, 'a1', '= VERSION(\"a1\")')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.TYPE_ERROR)
 
     def test_indirect(self):
         self.workbook.set_cell_contents(self.s1, 'a2', 'Phantasy')
@@ -270,6 +278,23 @@ class TestMethods(unittest.TestCase):
         self.assertIsInstance(a1_val, decimal.Decimal)
         self.assertEqual(a1_val, decimal.Decimal(2))
         self.workbook.set_cell_contents(self.s1, 'a2', '= a1')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.CIRCULAR_REFERENCE)
+
+    def test_indirect_more(self):
+        self.workbook.set_cell_contents(self.s1, 'a1', '= INDIRECT(\"A1\")')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.CIRCULAR_REFERENCE)
+
+    def test_if_more(self):
+        self.workbook.set_cell_contents(self.s1, 'b1', '1')
+        self.workbook.set_cell_contents(self.s1, 'a1', '= IF(b1, c1, a1)')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, decimal.Decimal)
+        self.assertEqual(a1_val, decimal.Decimal())
+        self.workbook.set_cell_contents(self.s1, 'b1', '0')
         a1_val = self.workbook.get_cell_value(self.s1, 'a1')
         self.assertIsInstance(a1_val, CellError)
         self.assertEqual(a1_val.get_type(), CellErrorType.CIRCULAR_REFERENCE)

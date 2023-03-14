@@ -9,7 +9,7 @@ _TYPE_VALUE = {
     bool: 2,
     str: 1,
     decimal.Decimal: 0,
-    None: -1
+    type(None): -1
 }
 
 def order(col):
