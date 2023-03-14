@@ -9,7 +9,7 @@ import json
 import string
 import logging
 from typing import Optional
-#from .sort import Row
+from .sort import Row
 from .cell import _Cell
 from .cellgraph import _CellGraph
 from .cellerror import CellErrorType, CellError
@@ -48,9 +48,9 @@ class Workbook():
             raise ValueError
         sheet_list = []
         for sheet in self.list_sheets():
-            sheet_dict = {'name': sheet, 'cell_contents': {}}
+            sheet_dict = {'name': sheet, 'cell-contents': {}}
             for loc in self.sheets[sheet.upper()]:
-                sheet_dict['cell_contents'][loc] = self.sheets[sheet.upper()][loc].toJSON()
+                sheet_dict['cell-contents'][loc] = self.sheets[sheet.upper()][loc].toJSON()
             sheet_list.append(sheet_dict)
         with open(filename, 'w', encoding="utf-8") as out_file:
             json.dump({'sheets':sheet_list}, out_file, indent = 4)
@@ -72,8 +72,8 @@ class Workbook():
         data = json.load(file)
         for sheet in data['sheets']:
             _, name = w_b.new_sheet(sheet['name'])
-            for loc in sheet['cell_contents']:
-                w_b.set_cell_contents(name, loc, sheet['cell_contents'][loc][1:-1])
+            for loc in sheet['cell-contents']:
+                w_b.set_cell_contents(name, loc, sheet['cell-contents'][loc][1:-1])
         file.close()
         return w_b
 
