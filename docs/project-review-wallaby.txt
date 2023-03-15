@@ -1,8 +1,8 @@
 CS130 Project Review
 ====================
 
-Team performing review:  <your team name here>
-Work being reviewed:  <name of team whose work is being reviewed>
+Team performing review:  Rosella
+Work being reviewed:  Wallaby
 
 The first two sections are for reviewing the `sheets` library code itself,
 excluding the test code and other aspects of the project.  The remaining
@@ -115,6 +115,8 @@ with self.assertRaises(CertainError):
     do_something
 
 This will help will making the code concise and clear in what it is testing.
+There are other small unittest.TestCase functions that can help make the test
+code more concise such as assertIsInstance and assertEqual. 
 
 Feedback comments on other aspects of the project
 -------------------------------------------------
@@ -122,4 +124,12 @@ Feedback comments on other aspects of the project
 If you have any other comments - compliments or suggestions for improvement -
 that aren't covered by previous sections, please include them here.
 
-<your team's feedback here>
+After learning how you've obtained such incredible performance over the
+reference implementation, we highly respect how deep your team delved into the
+lark module in order to optimize the parser for your codebase. Furthermore,
+the caching of the parser and ast was also brilliant code that took great
+effort to implement, and we want you to know how amazing we think this code
+is. It was a great learning experience to be able to discuss your codebase and
+how it was developed over this entire course. It still impresses us how your
+team managed to match the performance of a single cell update in the reference
+implementation to the update of several cells in your implementation.
