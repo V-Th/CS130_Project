@@ -288,6 +288,12 @@ class TestMethods(unittest.TestCase):
         self.assertIsInstance(a1_val, CellError)
         self.assertEqual(a1_val.get_type(), CellErrorType.CIRCULAR_REFERENCE)
 
+    def test_indirect_more(self):
+        self.workbook.set_cell_contents(self.s1, 'a1', '= INDIRECT()')
+        a1_val = self.workbook.get_cell_value(self.s1, 'a1')
+        self.assertIsInstance(a1_val, CellError)
+        self.assertEqual(a1_val.get_type(), CellErrorType.TYPE_ERROR)
+
     def test_if_more(self):
         self.workbook.set_cell_contents(self.s1, 'b1', '1')
         self.workbook.set_cell_contents(self.s1, 'a1', '= IF(b1, c1, a1)')
