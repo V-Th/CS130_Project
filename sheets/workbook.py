@@ -565,6 +565,7 @@ class Workbook():
                 if move:
                     self._set_cell_contents(sheet_name, old_location, None)
                     self._update_cell(start_cell)
+                    self._update_sheet_extent(sheet_name.upper(), start_cell)
         return contents
 
     # pylint: disable=R0914
@@ -595,8 +596,8 @@ class Workbook():
                 self._set_cell_contents(to_sheet, new_location, contents[old_location])
                 cell = self.sheets[to_sheet.upper()][new_location.upper()]
                 self._update_cell(cell)
+                self._update_sheet_extent(sheet_name.upper(), cell)
         self._call_notification()
-        self._update_sheet_extent(to_sheet, None)
 
 
     def move_cells(self, sheet_name: str, start_location: str,
