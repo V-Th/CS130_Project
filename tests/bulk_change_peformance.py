@@ -15,7 +15,7 @@ def performance_run(workbook_cmd, name):
     
     pr.disable()
     s = io.StringIO()
-    ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE, SortKey.TIME)
+    ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.TIME, SortKey.CUMULATIVE)
     ps.print_stats()
     print(name)
     print(s.getvalue())
