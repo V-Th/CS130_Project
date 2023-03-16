@@ -164,7 +164,6 @@ class Workbook():
             letter_str = (chr((modulo) + ord('A'))) + letter_str
             row = (row - 1) // 26
         if not self._is_valid_location(letter_str + str(col)):
-            print(letter_str + str(col) + " is #REF!")
             return "#REF!"
         if abs_row:
             letter_str = '$' + letter_str
@@ -564,7 +563,8 @@ class Workbook():
                 start_cell = self.sheets[sheet_name.upper()][old_location.upper()]
                 contents[old_location] = start_cell.get_relative_contents(x_diff, y_diff, to_sheet)
                 if move:
-                    self.set_cell_contents(sheet_name, old_location, None)
+                    self._set_cell_contents(sheet_name, old_location, None)
+                    self._update_cell(start_cell)
         return contents
 
     # pylint: disable=R0914
@@ -592,7 +592,11 @@ class Workbook():
             for j in range(min(y_1, y_2), max(y_1, y_2) + 1):
                 old_location = self.tuple_to_loc(i, j)
                 new_location = self.tuple_to_loc(i + x_diff, j + y_diff)
-                self.set_cell_contents(to_sheet, new_location, contents[old_location])
+                self._set_cell_contents(to_sheet, new_location, contents[old_location])
+                cell = self.sheets[to_sheet.upper()][new_location.upper()]
+                self._update_cell(cell)
+        self._call_notification()
+        self._update_sheet_extent(to_sheet, None)
 
 
     def move_cells(self, sheet_name: str, start_location: str,
