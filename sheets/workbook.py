@@ -686,6 +686,7 @@ class Workbook():
                 cell = self.sheets[sheet_upper].get(new_loc)
                 old_val = None if cell is None else cell.get_value()
                 self._set_cell_contents(sheet_name, new_loc, content)
+                cell = self.sheets[sheet_upper].get(new_loc)
                 self._update_cell(cell)
                 if old_val != cell.get_value():
                     self.changed_cells.append(cell)
