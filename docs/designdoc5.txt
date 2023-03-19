@@ -1,0 +1,131 @@
+CS130 Project 5 - Design Document
+=================================
+
+Please answer all questions in this design document.  Note that the final
+feedback section is optional, and you are not required to answer it if you
+don't want to.
+
+Unanswered or incompletely answered questions, or answers that don't actually
+match the code/repository, will result in deductions.
+
+Answers don't have to be deeply detailed!  We are mainly looking for an
+overview or summary description of how your project works, and your team's
+experiences working on this project.
+
+Logistics (7 points)
+--------------------
+
+L1.  [2pts] Enumerate all teammates here.
+    Anushka Gupta
+    Vinny Thai
+
+L2.  [2pts] What did each teammate focus on during this project?
+    Anushka focused on meeting the performance requirements.
+    Vinny focused on adding the new sort features.
+    Both worked on the code review.
+
+L3.  [3pts] Approximately how many hours did each teammate spend on the project?
+    Anushka - 11 hours
+    Vinny - 12 hours
+
+Spreadsheet Engine Design (10 points)
+-------------------------------------
+
+D1.  [4pts] Give an overview of how you implemented sorting.  Do you sort the
+     rows directly?  Do you use adapter objects instead?  Some other technique?
+    An adapter object was created for each row in the sort. The row contains
+    values that should be compared to decide the order of the rows and whether
+    it should be ascending or descending. The objects had their equal and less
+    than defined such that if all values are equal then the rows are equal.
+    If the first value of one row is less than another, then that row is less
+    than the other row. If not, then the next value in the row is compared.
+    Then, python's sort was used.
+
+D2.  [3pts] How does your implementation solve the problem of supporting the
+     user-specified row ordering based on both the columns and the ordering to
+     sort by?  Did you create any classes or functions to help specifically with
+     this task?
+    The row objects construction deals with these details. Only the columns
+    specified are added to the row object to be compared and in the order of
+    their priority. The ascending and descending is also determine and added
+    to another aspect of the object which keeps track of what the order is of
+    each column. When performing any comparisons, the boolean is negated if
+    the column is specified to be descending.
+
+D3.  [3pts] Briefly describe the changes you made to your spreadsheet engine to
+     satisfy the stricter cell-change notification behaviors.  Did you find this
+     to be largely straightforward to change?  Why or why not?
+    The change was largely straightforward. The only changes made werer to
+    parts of the code where set_cell_content was used. This was replaced with
+    an interal _set_cell_content which does not call the notification function
+    yet. Instead, it only adds to the list of cells that have been changed.
+    The parent function is then repsonsible for calling the notification
+    function once it is done.
+
+Performance Improvement (13 pts)
+--------------------------------
+
+In this project you must improve the performance of operations that involve
+bulk updating of cell formulas and/or values.  In the previous project your
+team should have written some performance-testing code in preparation for this
+effort, and should have run it under a profiler to get an initial sense of
+where improvements can be made.  In this project you need to follow through on
+this setup, and address performance issues in your code.
+
+P1.  [7pts] Give a brief overview of 2-3 of the worst hot-spots you identified
+     in your performance testing and analysis.  For each one, describe how your
+     team was able to resolve it.
+    The first hotspot was in rename_sheet as the lark transformer was taking a
+    large amount of time. Looking into it, it was discovered that there was no
+    condition to whether the formula for a cell should be rewritten or not.
+    Thus, the lark transformer always ran whether or not it had a sheetname to
+    change. Thus, it was quickly resolved by adding a condition to not run the
+    lark transformer if the contents did not contain the sheetname.
+
+    Another hotspot was the updating of cells when copying a sheet. It was
+    updating many cells when creating the copy of the other sheet. After lots
+    of thought about possible edge cases, it was decided that values in the
+    copy should not be different than those in the original and that values
+    can be directly copied rather than re-evaluated. However, a check for
+    cells referencing this new sheet was still checked for to update.
+
+P2.  [3pts] Did your team try anything to address performance issues and find
+     that it didn't improve things at all?  If so, were you able to identify why
+     the intended fix didn't produce the desired benefit?
+    Luckily, there was no further performance improvements that were necessary
+    after finding and resolving those two hotspots. The json performance test
+    was something that could not be completed in time due to time constraints
+    and was left as is.
+
+P3.  [3pts] Did your performance updates cause any regressions in functionality?
+     If so, briefly describe any issues that emerged.  How were these issues
+     identified (e.g. automated test failures, manual testing, etc.)?  How
+     quickly were issues identified?
+    Regarding the two fixes made, there was no regressions caused by the
+    performance update.
+
+Section F:  CS130 Project 4 Feedback [OPTIONAL]
+-----------------------------------------------
+
+These questions are OPTIONAL, and you do not need to answer them.  Your grade
+will not be affected by answering or not answering them.  Also, your grade will
+not be affected by negative feedback - we want to know what went poorly so that
+we can improve future versions of the course.
+
+F1.  What parts of the assignment did you find highly enjoyable?  Conversely,
+     what parts of the assignment did you find unenjoyable?
+    We thoroughly enjoyed the code review and being able to see and discuss
+    with others about their codebase and approaches to the same problems/
+    features. We hope that this is kept for the course in the future.
+
+F2.  What parts of the assignment helped you learn more about software
+     engineering best-practices, or other useful development skills?
+     What parts were not helpful in learning these skills?
+
+
+F3.  Were there any parts of the assignment that seemed _unnecessarily_ tedious?
+     (Some parts of software development are always tedious, of course.)
+
+
+F4.  Do you have any feedback and/or constructive criticism about how this
+     project can be made better in future iterations of CS130?
